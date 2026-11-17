@@ -1,11 +1,22 @@
+Games and Artificial Intelligence
+Course: Artificial Intelligence in Games
+Project type: Practical, project-based learning
+Prerequisites: Proficiency in Object-Oriented Programming (C++, C#, or Python) and Data Structures & Algorithms.
+
+1. Project overview
+The following eight projects are designed to help students understand, implement, and evaluate different AI techniques used in modern video games.
+
+The projects progress from classical game AI techniques to more advanced approaches involving machine learning, reinforcement learning, and generative AI.
+
+They are designed to be achievable within a three-week course, with a working prototype and a final demonstration as the expected outcomes.
+
+Students can work in small teams of 3-4 members.
+
 Project 3. Tactical Enemy AI for Combat Games
 Intermediate
 
 Decision-making AI
 
-
-
- 
 
 Project description
 
