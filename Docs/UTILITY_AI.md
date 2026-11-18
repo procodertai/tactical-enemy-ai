@@ -26,8 +26,8 @@ Run **Tactical Game → Utility AI → Check decision scenarios**. Expect a PASS
 
 1. Open the project with its target Unity 6000.6 editor and let scripts import.
 2. Stop Play mode. Choose **Tactical Game → Utility AI → Create standalone demo**. Save any scene changes when Unity asks.
-3. The command creates and opens `Assets/TacticalGame/Scenes/UtilityAiDemo.unity`, selects guard 01, disables all baseline guards and equips only that guard with Utility AI. It refuses to overwrite an existing demo. Later, open that scene directly.
-4. Press Play and Begin Mission. Approach guard 01. The overlay shows observations, ammunition, current action, scores and the last switch explanation. Press F3 to hide or show it.
+3. The command creates and opens `Assets/TacticalGame/Scenes/UtilityAiDemo.unity`, selects guard 01, disables all baseline guards, stops guards 02 and 03 from chasing, and equips only guard 01 with Utility AI. Guard 01 keeps the A* chase. It refuses to overwrite an existing demo. Later, open that scene directly.
+4. Press Play and Begin Mission. Approach guard 01. The overlay on the right shows perception state, observations, ammunition, current action, scores and the last switch explanation. Press F2 to hide or show it (F3 belongs to the squad debug panel).
 5. Watch the magazine drain, Reload complete, and Fire resume. Duck behind a wall with a partial magazine: Fire becomes unavailable and Reload becomes attractive.
 6. For a health demonstration, shoot the guard three times with the player's 25-damage rifle while its magazine is near half full. Watch health and candidate scores; avoid a fourth hit, which defeats it. The deterministic decision checks provide the exact half-ammunition comparison without timing a live fight.
 
@@ -42,7 +42,7 @@ Run **Tactical Game → Utility AI → Check decision scenarios**. Expect a PASS
 
 ## Integration and verification limits
 
-`EnemyObservationProvider.Observe(range)` returns visibility, an aim point and distance. A teammate can implement a subclass backed by perception and assign it to the controller. The supplied `TemporaryEnemyObservation` directly references the player for range/raycast checks; it has no viewing cone or memory. The scorer receives only the resulting snapshot. Movement and role scoring are deferred.
+`EnemyObservationProvider.Observe(range)` returns visibility, an aim point and distance. `PerceptionObservation` backs it with the guard's `GuardPerception` (view cone, wall occlusion, memory): the player counts as visible only while perception sees them and is Alerted, so the live player position is used only when legitimately seen. The scorer receives only the resulting snapshot. Movement and role scoring are deferred.
 
 Keep Health and TargetDummy on the guard. The controller disables BasicGuard in Awake as a safeguard; the demo also saves it disabled. Do not run another attack controller on the same enemy.
 
