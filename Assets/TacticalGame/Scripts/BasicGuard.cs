@@ -3,7 +3,7 @@ using UnityEngine;
 namespace TacticalGame
 {
     // Temporary combat baseline: stand, turn, warn, shoot on a fixed timer.
-    // No navigation, tactical choices, viewing cone, memory, or squad messages.
+    // Perception supplies visual confirmation before the attack warning starts.
     [RequireComponent(typeof(TargetDummy))]
     public sealed class BasicGuard : MonoBehaviour
     {
@@ -16,6 +16,7 @@ namespace TacticalGame
         public bool CanShoot { get; private set; }
         public int ShotsFired { get; private set; }
         TargetDummy target;
+        GuardPerception perception;
         float shotAt;
         float flashUntil;
 
@@ -30,7 +31,9 @@ namespace TacticalGame
             var game = GameSession.Instance;
             if (game == null) return;
             tracer.enabled = Time.time < flashUntil && game.State == RoundState.Playing;
-            if (!target.health.IsAlive || !game.CanControl)
+            if (perception == null) TryGetComponent(out perception);
+            if (!target.health.IsAlive || !game.CanControl || perception == null ||
+                !perception.CanSeeTarget || perception.State != GuardPerception.AwarenessState.Alerted)
             {
                 CanShoot = false;
                 warningLight.enabled = false;

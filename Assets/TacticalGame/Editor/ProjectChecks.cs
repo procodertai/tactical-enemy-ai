@@ -138,6 +138,8 @@ namespace TacticalGame.Editor
         static GameObject guardTestWall;
         static float guardTestHealth;
         static int guardTestShots;
+        static Vector3 guardTestPosition, rememberedPlayerPosition;
+        static float sharedObservationTime;
         static readonly List<string> Results = new List<string>();
         const string Running = "LastLight.PlayChecks";
 
@@ -184,6 +186,13 @@ namespace TacticalGame.Editor
                         ProjectChecks.Require(game.State == RoundState.Briefing, "Round must start at briefing");
                         ProjectChecks.Require(player.health.Current == 100 && rifle.Ammo == 24 && rifle.Reserve == 120, "Initial health/ammo");
                         foreach (var guard in ProjectChecks.FindAll<BasicGuard>()) guard.enabled = false;
+                        foreach (var chase in ProjectChecks.FindAll<AutoChase>()) chase.enabled = false;
+                        ProjectChecks.Require(player.GetComponents<PlayerNoiseEmitter>().Length == 1, "One noise emitter on the player");
+                        foreach (var target in game.targets)
+                        {
+                            var sensors = target.GetComponents<GuardPerception>();
+                            ProjectChecks.Require(sensors.Length == 1 && !sensors[0].HasLastKnown, "One fresh sensor per guard");
+                        }
                         ProjectChecks.Require(game.targets[0].GetComponentInChildren<SkinnedMeshRenderer>() != null, "Template character mesh");
                         game.Begin();
                         stage++; waitUntil = Time.unscaledTime + .3f; break;
@@ -254,15 +263,35 @@ namespace TacticalGame.Editor
                         stage++; waitUntil = Time.unscaledTime + .4f; break;
                     case 6:
                         foreach (var guard in ProjectChecks.FindAll<BasicGuard>()) guard.enabled = false;
+                        foreach (var chase in ProjectChecks.FindAll<AutoChase>()) chase.enabled = false;
                         var firstGuard = game.targets[0].GetComponent<BasicGuard>();
                         firstGuard.enabled = true;
+                        var firstSensor = firstGuard.GetComponent<GuardPerception>();
+                        foreach (var sensor in ProjectChecks.FindAll<GuardPerception>()) sensor.enabled = sensor == firstSensor;
+                        SetFirstGuardChase(true);
+                        guardTestPosition = firstGuard.transform.position;
+                        game.targets[0].body.rotation = Quaternion.LookRotation(Vector3.forward);
                         game.Begin();
                         Place(player, firstGuard.transform.position + new Vector3(0, 0, -4));
-                        stage++; waitUntil = Time.unscaledTime + .3f; break;
+                        stage++; waitUntil = Time.unscaledTime + .65f; break;
                     case 7:
-                        ProjectChecks.Require(player.health.Current == 100 && game.targets[0].GetComponent<BasicGuard>().ShotsFired == 0, "Guard warning delay");
-                        stage++; waitUntil = Time.unscaledTime + 1.3f; break;
+                        var unaware = game.targets[0].GetComponent<GuardPerception>();
+                        ProjectChecks.Require(!unaware.CanSeeTarget && !unaware.HasLastKnown, "Player outside the cone stays undetected");
+                        ProjectChecks.Require(!game.squadCoordinator.TryGetSharedSighting(out _), "Undetected player stays unknown to the squad");
+                        ProjectChecks.Require(game.targets[0].transform.position == guardTestPosition, "Chase must not follow an undetected player");
+                        SetFirstGuardChase(false);
+                        game.targets[0].body.rotation = Quaternion.LookRotation(Vector3.back);
+                        unaware.secondsToNotice = .1f;
+                        stage++; waitUntil = Time.unscaledTime + .35f; break;
                     case 8:
+                        var seeing = game.targets[0].GetComponent<GuardPerception>();
+                        ProjectChecks.Require(seeing.CanSeeTarget && seeing.State == GuardPerception.AwarenessState.Alerted, "Player inside the cone is detected");
+                        ProjectChecks.Require(game.squadCoordinator.TryGetSharedSighting(out var known) &&
+                            known.Report.ReporterId == game.targets[0].EnemyId &&
+                            (known.Report.ObservedPosition - seeing.LastKnownPosition).sqrMagnitude < .01f, "Confirmed sighting reaches the squad");
+                        ProjectChecks.Require(player.health.Current == 100 && game.targets[0].GetComponent<BasicGuard>().ShotsFired == 0, "Guard warning delay");
+                        stage++; waitUntil = Time.unscaledTime + 1.15f; break;
+                    case 9:
                         ProjectChecks.Require(player.health.Current == 92, "Basic guard must actually damage player");
                         guardTestWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
                         guardTestWall.transform.position = game.targets[0].transform.position + new Vector3(0, 1.4f, -2);
@@ -270,23 +299,56 @@ namespace TacticalGame.Editor
                         Physics.SyncTransforms();
                         guardTestHealth = player.health.Current;
                         guardTestShots = game.targets[0].GetComponent<BasicGuard>().ShotsFired;
+                        rememberedPlayerPosition = game.targets[0].GetComponent<GuardPerception>().LastKnownPosition;
+                        ProjectChecks.Require(game.squadCoordinator.TryGetSharedSighting(out var lastReport), "Shared sighting before cover");
+                        sharedObservationTime = lastReport.Report.ObservedAt;
+                        Place(player, player.transform.position + Vector3.right * .5f);
                         stage++; waitUntil = Time.unscaledTime + 2f; break;
-                    case 9:
+                    case 10:
                         ProjectChecks.Require(player.health.Current == guardTestHealth && game.targets[0].GetComponent<BasicGuard>().ShotsFired == guardTestShots, "Cover must block guard fire");
+                        var behindCover = game.targets[0].GetComponent<GuardPerception>();
+                        ProjectChecks.Require(!behindCover.CanSeeTarget && behindCover.HasLastKnown && behindCover.TimeSinceLastSeen > 1f &&
+                            behindCover.LastKnownPosition == rememberedPlayerPosition, "Cover preserves the last seen position as it ages");
+                        ProjectChecks.Require(game.squadCoordinator.TryGetSharedSighting(out var aged) && aged.Report.ObservedAt == sharedObservationTime,
+                            "Cover prevents new squad sightings");
+                        behindCover.memoryDuration = .1f;
+                        behindCover.decayPerSecond = 10f;
+                        stage++; waitUntil = Time.unscaledTime + .3f; break;
+                    case 11:
+                        ProjectChecks.Require(!game.targets[0].GetComponent<GuardPerception>().HasLastKnown, "Local memory expires without a new stimulus");
+                        ProjectChecks.Require(rifle.TryFire(), "Fire behind cover to test hearing");
+                        stage++; waitUntil = Time.unscaledTime + .08f; break;
+                    case 12:
+                        var hearing = game.targets[0].GetComponent<GuardPerception>();
+                        ProjectChecks.Require(!hearing.CanSeeTarget && hearing.HasLastKnown && hearing.TimeSinceLastSeen > 1f &&
+                            (hearing.LastKnownPosition - player.transform.position).sqrMagnitude < .01f &&
+                            hearing.State == GuardPerception.AwarenessState.Suspicious, "Gunshot provides a sound position through cover");
+                        ProjectChecks.Require(game.squadCoordinator.TryGetSharedSighting(out var retainedSighting) &&
+                            retainedSighting.Report.ObservedAt == sharedObservationTime, "Hearing cannot refresh a visual sighting");
+                        hearing.memoryDuration = 4f;
+                        SetFirstGuardChase(true);
+                        stage++; waitUntil = Time.unscaledTime + .3f; break;
+                    case 13:
+                        var investigating = game.targets[0].GetComponent<AutoChase>();
+                        if (investigating != null)
+                            ProjectChecks.Require(Vector3.Distance(game.targets[0].transform.position, guardTestPosition) > .05f,
+                                "A* chase investigates the remembered sound");
                         UnityEngine.Object.DestroyImmediate(guardTestWall);
                         game.targets[0].health.TakeDamage(1000);
                         stage++; waitUntil = Time.unscaledTime + 2f; break;
-                    case 10:
+                    case 14:
                         ProjectChecks.Require(player.health.Current == guardTestHealth && game.targets[0].GetComponent<BasicGuard>().ShotsFired == guardTestShots, "Dead guard must stop firing");
-                        Results.Add("PASS " + game.missionName + ": template character, guard warning delay, real enemy damage, cover blocking enemy shots, death stops attacks");
+                        Results.Add("PASS " + game.missionName + ": cone detection, shared sighting, guard warning and damage, occlusion, memory aging and expiry, hearing, death stops attacks");
+                        if (game.targets[0].GetComponent<AutoChase>() != null)
+                            Results.Add("PASS " + game.missionName + ": A* chase requires knowledge and investigates a heard position");
                         game.Restart();
                         stage++; waitUntil = Time.unscaledTime + .4f; break;
-                    case 11:
+                    case 15:
                         // Shorten only the test instance's clock, then let GameSession.Update expire it.
                         typeof(GameSession).GetProperty("Remaining").SetValue(game, .1f);
                         game.Begin();
                         stage++; waitUntil = Time.unscaledTime + .3f; break;
-                    case 12:
+                    case 16:
                         ProjectChecks.Require(game.State == RoundState.Lost && game.Remaining == 0f, "Actual timer expiry");
                         Results.Add("PASS " + game.missionName + ": timer expiry");
                         if (sceneIndex == 0)
@@ -297,6 +359,11 @@ namespace TacticalGame.Editor
                         }
                         else Complete();
                         break;
+                }
+
+                void SetFirstGuardChase(bool enabled)
+                {
+                    if (game.targets[0].TryGetComponent<AutoChase>(out var chase)) chase.enabled = enabled;
                 }
             }
             catch (Exception error)

@@ -4,7 +4,7 @@ A single-player 3D first-person game for the Tactical Enemy AI course. **The mai
 
 Two editable industrial maps: **Substation** and **Rail Depot**. Restore two terminals in either order and interact with the exit before the six-minute clock expires. Includes walking, sprinting, jumping, mouse look, aiming, rifle fire, reloading, health, ammo and medical supplies, shooting feedback, synthesized sound, mission menus, pause, restart, and an overhead camera.
 
-**The course's tactical AI is not implemented.** Each map has three armed guards using a temporary `BasicGuard` baseline: stand in place, turn toward the player, warn, and fire on a fixed timer when the player is in range and the shot is unobstructed. Walls block fire. Guards do not navigate, evaluate tactical actions, remember sightings, or coordinate. Defeating them is optional; completing the terminals and extracting is the mission.
+Each map has three guards with a viewing cone, hearing, and short-term memory. A confirmed sighting can be shared with the squad. Guards warn before firing and need a clear shot. In Substation, the temporary A* chase investigates a position the guard saw, heard, or learned from the squad. Defeating the guards is optional. Completing the terminals and extracting is the mission.
 
 The graphics now reuse **Unity Multiplayer FPS template 1.0.8**: rigged Armature characters and pose, assault rifles, modular environment meshes, PBR textures, and rifle/footstep sounds. Materials are adapted from the template's URP shaders to the starter's Built-in Render Pipeline. See [asset credits and adaptation details](Docs/TEMPLATE_ASSETS.md).
 
@@ -56,7 +56,7 @@ Uses Unity's **Built-in Render Pipeline** and built-in **Input Manager**. The re
 
 ## Editor tools
 
-Coordination Step 01 is implemented as shared C# message types and interfaces under `Assets/TacticalGame/Scripts/Coordination`. Existing enemies and markers expose their IDs through these contracts. Use **Tactical Game → Coordination → Step 01 - Prepare and validate interfaces** to create/review the settings asset and check both maps. Concrete squad behavior remains for later steps.
+Coordination code lives under `Assets/TacticalGame/Scripts/Coordination`. Use **Tactical Game → Coordination → Run full coordination checks** to exercise the roster, shared sightings, roles, reservations, and movement feedback on both maps.
 
 The **Tactical Game** menu offers **Validate both maps**, **Run gameplay smoke checks**, and **Build Windows game**. Stop Play mode before running these tools. Save your scene changes before validation; validation opens both scenes. Gameplay checks temporarily run both rounds and write `Artifacts/gameplay-checks.txt`.
 
