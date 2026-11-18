@@ -152,10 +152,15 @@ namespace TacticalGame.Editor
             game.player = Player(new Vector3(0, .12f, -16), gameplay);
             game.overviewCamera = Overview();
             Markers();
+            foreach (var enemy in game.targets) enemy.gameObject.AddComponent<TacticalGame.Coordination.SquadMovementFeedback>();
             PrefabUtility.SaveAsPrefabAsset(game.player.gameObject, Root + "/Prefabs/Player.prefab");
             PrefabUtility.SaveAsPrefabAsset(game.targets[0].gameObject, Root + "/Prefabs/StationaryTarget.prefab");
             PrefabUtility.SaveAsPrefabAsset(game.targets[0].gameObject, Root + "/Prefabs/BasicGuard.prefab");
             PrefabUtility.SaveAsPrefabAsset(a.gameObject, Root + "/Prefabs/ObjectiveTerminal.prefab");
+            game.squadCoordinator = sessionObject.AddComponent<TacticalGame.Coordination.SquadCoordinator>();
+            game.squadCoordinator.Configure(game.targets, ProjectChecks.FindAll<TacticalMarker>(),
+                AssetDatabase.LoadAssetAtPath<TacticalGame.Coordination.SquadInterfaceSettings>(CoordinationInterfaceChecks.SettingsPath));
+            sessionObject.AddComponent<TacticalGame.Coordination.SquadCoordinationDebug>();
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, depot ? DepotPath : SubstationPath);
         }

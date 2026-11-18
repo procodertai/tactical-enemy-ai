@@ -15,6 +15,7 @@ namespace TacticalGame
         public PlayerController player;
         public ObjectiveTerminal[] objectives;
         public TargetDummy[] targets;
+        public TacticalGame.Coordination.SquadCoordinator squadCoordinator;
         public ExitGate exitGate;
         public Camera overviewCamera;
         public ReflectionProbe environmentReflections;

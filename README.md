@@ -56,6 +56,8 @@ Uses Unity's **Built-in Render Pipeline** and built-in **Input Manager**. The re
 
 ## Editor tools
 
+Coordination Step 01 is implemented as shared C# message types and interfaces under `Assets/TacticalGame/Scripts/Coordination`. Existing enemies and markers expose their IDs through these contracts. Use **Tactical Game → Coordination → Step 01 - Prepare and validate interfaces** to create/review the settings asset and check both maps. Concrete squad behavior remains for later steps.
+
 The **Tactical Game** menu offers **Validate both maps**, **Run gameplay smoke checks**, and **Build Windows game**. Stop Play mode before running these tools. Save your scene changes before validation; validation opens both scenes. Gameplay checks temporarily run both rounds and write `Artifacts/gameplay-checks.txt`.
 
 **Rebuild starter scenes** is an authoring tool that replaces the two generated scene files, starter materials, and prefabs. It shows a warning first. Save your own maps with new filenames before using it. You do not need to rebuild scenes to play.

@@ -2919,6 +2919,7 @@ GameObject:
   - component: {fileID: 136705486}
   - component: {fileID: 136705485}
   - component: {fileID: 136705484}
+  - component: {fileID: 136705489}
   m_Layer: 0
   m_Name: GUARD 02 - Basic fixed attack
   m_TagString: Untagged
@@ -3101,6 +3102,7 @@ MonoBehaviour:
   label: {fileID: 1199861265}
   chest: {fileID: 455938255}
   hitMaterial: {fileID: 2100000, guid: d2379cc81ac82134fa8e44042a6fa405, type: 2}
+  squadCoordinator: {fileID: 668324161}
 --- !u!114 &136705488
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3114,6 +3116,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maximum: 100
+--- !u!114 &136705489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 136705482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a8512b452e294847929ecd827761fc7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  navigationSource: {fileID: 0}
 --- !u!1 &144928202
 GameObject:
   m_ObjectHideFlags: 0
@@ -4642,6 +4657,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 1
   id: 5
+  squadCoordinator: {fileID: 668324161}
 --- !u!1 &211206331
 GameObject:
   m_ObjectHideFlags: 0
@@ -7916,6 +7932,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 0
   id: 4
+  squadCoordinator: {fileID: 668324161}
 --- !u!1 &333406457
 GameObject:
   m_ObjectHideFlags: 0
@@ -15803,6 +15820,8 @@ GameObject:
   - component: {fileID: 668324159}
   - component: {fileID: 668324158}
   - component: {fileID: 668324157}
+  - component: {fileID: 668324161}
+  - component: {fileID: 668324162}
   m_Layer: 0
   m_Name: MISSION - Rules, HUD and Audio
   m_TagString: Untagged
@@ -15860,6 +15879,7 @@ MonoBehaviour:
   - {fileID: 2112812411}
   - {fileID: 136705487}
   - {fileID: 1705268512}
+  squadCoordinator: {fileID: 668324161}
   exitGate: {fileID: 1576556550}
   overviewCamera: {fileID: 596354659}
   environmentReflections: {fileID: 246605976}
@@ -15879,6 +15899,45 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &668324161
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 668324156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 742b3a9abe81a9644813d7b02c8ab71d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  settings: {fileID: 11400000, guid: 2875fa29d8cf8e24ca10817a27b5a406, type: 2}
+  configuredEnemies:
+  - {fileID: 2112812411}
+  - {fileID: 136705487}
+  - {fileID: 1705268512}
+  configuredDestinations:
+  - {fileID: 1942543003}
+  - {fileID: 967549148}
+  - {fileID: 1528782669}
+  - {fileID: 332949877}
+  - {fileID: 210293812}
+  - {fileID: 1665151682}
+  - {fileID: 1876228986}
+  coordinationEnabled: 1
+--- !u!114 &668324162
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 668324156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce2a2ec957ba8d3498496f6b01b88227, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  visible: 0
 --- !u!1 &671050505
 GameObject:
   m_ObjectHideFlags: 0
@@ -22114,6 +22173,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 0
   id: 2
+  squadCoordinator: {fileID: 668324161}
 --- !u!1 &974444751
 GameObject:
   m_ObjectHideFlags: 0
@@ -33376,6 +33436,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 0
   id: 3
+  squadCoordinator: {fileID: 668324161}
 --- !u!1 &1533088619
 GameObject:
   m_ObjectHideFlags: 0
@@ -36348,6 +36409,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 1
   id: 6
+  squadCoordinator: {fileID: 668324161}
 --- !u!1 &1665204128
 GameObject:
   m_ObjectHideFlags: 0
@@ -37004,6 +37066,7 @@ GameObject:
   - component: {fileID: 1705268511}
   - component: {fileID: 1705268510}
   - component: {fileID: 1705268509}
+  - component: {fileID: 1705268514}
   m_Layer: 0
   m_Name: GUARD 03 - Basic fixed attack
   m_TagString: Untagged
@@ -37186,6 +37249,7 @@ MonoBehaviour:
   label: {fileID: 652288456}
   chest: {fileID: 223395807}
   hitMaterial: {fileID: 2100000, guid: d2379cc81ac82134fa8e44042a6fa405, type: 2}
+  squadCoordinator: {fileID: 668324161}
 --- !u!114 &1705268513
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37199,6 +37263,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maximum: 100
+--- !u!114 &1705268514
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1705268507}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a8512b452e294847929ecd827761fc7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  navigationSource: {fileID: 0}
 --- !u!1 &1706251997
 GameObject:
   m_ObjectHideFlags: 0
@@ -41353,6 +41430,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 2
   id: 7
+  squadCoordinator: {fileID: 668324161}
 --- !u!1 &1876295144
 GameObject:
   m_ObjectHideFlags: 0
@@ -42738,6 +42816,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   kind: 0
   id: 1
+  squadCoordinator: {fileID: 668324161}
 --- !u!1 &1945783940
 GameObject:
   m_ObjectHideFlags: 0
@@ -46498,6 +46577,7 @@ GameObject:
   - component: {fileID: 2112812410}
   - component: {fileID: 2112812409}
   - component: {fileID: 2112812408}
+  - component: {fileID: 2112812413}
   m_Layer: 0
   m_Name: GUARD 01 - Basic fixed attack
   m_TagString: Untagged
@@ -46680,6 +46760,7 @@ MonoBehaviour:
   label: {fileID: 2067841134}
   chest: {fileID: 1022108998}
   hitMaterial: {fileID: 2100000, guid: d2379cc81ac82134fa8e44042a6fa405, type: 2}
+  squadCoordinator: {fileID: 668324161}
 --- !u!114 &2112812412
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46693,6 +46774,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maximum: 100
+--- !u!114 &2112812413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2112812406}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a8512b452e294847929ecd827761fc7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  navigationSource: {fileID: 0}
 --- !u!1 &2114944985
 GameObject:
   m_ObjectHideFlags: 0

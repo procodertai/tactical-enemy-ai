@@ -1871,6 +1871,7 @@ GameObject:
   - component: {fileID: 694308467008225282}
   - component: {fileID: 1634016516885162358}
   - component: {fileID: 4818635261982011700}
+  - component: {fileID: 2132595323887975841}
   m_Layer: 0
   m_Name: StationaryTarget
   m_TagString: Untagged
@@ -1926,6 +1927,7 @@ MonoBehaviour:
   label: {fileID: 7115070485417266274}
   chest: {fileID: 1977864348492589183}
   hitMaterial: {fileID: 2100000, guid: d2379cc81ac82134fa8e44042a6fa405, type: 2}
+  squadCoordinator: {fileID: 0}
 --- !u!136 &694308467008225282
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -2066,6 +2068,19 @@ LineRenderer:
     generateLightingData: 0
   m_UseWorldSpace: 1
   m_Loop: 0
+--- !u!114 &2132595323887975841
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5479633773739116814}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a8512b452e294847929ecd827761fc7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  navigationSource: {fileID: 0}
 --- !u!1 &5491723043500740571
 GameObject:
   m_ObjectHideFlags: 0

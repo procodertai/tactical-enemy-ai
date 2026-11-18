@@ -1,0 +1,3 @@
+## Step 1 — Defining how the AI components communicate
+
+My responsibility is squad coordination: helping the three enemies work together. In this first step, I defined how my system will communicate with my teammates’ perception, decision-making, and navigation systems. We now have shared formats for enemy and destination IDs, combat roles, player sightings, and movement results. I added these interfaces to the project and checked that both maps expose valid IDs. This gives us a common foundation for connecting our work. The actual behaviors, such as sharing sightings and reserving different positions, will be implemented in later steps.
