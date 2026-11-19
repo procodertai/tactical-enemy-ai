@@ -1,3 +1,4 @@
+using TacticalGame.Coordination;
 using UnityEngine;
 
 namespace TacticalGame
@@ -7,6 +8,7 @@ namespace TacticalGame
         public bool Visible;
         public Vector3 AimPoint;
         public float Distance;
+        public SightingReport? KnownTarget;
     }
 
     // Teammates can replace this component with a perception-backed subclass.

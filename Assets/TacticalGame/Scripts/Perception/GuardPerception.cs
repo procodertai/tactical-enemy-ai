@@ -48,6 +48,7 @@ namespace TacticalGame
         public bool HasLastKnown { get; private set; }
         public Vector3 LastKnownPosition { get; private set; }
         public float TimeSinceLastSeen => Time.time - lastSeenAt;
+        public float LastStimulusAt => lastStimulusAt;
         public event Action<AwarenessState, AwarenessState> StateChanged;
 
         static readonly List<GuardPerception> All = new List<GuardPerception>();
@@ -175,13 +176,16 @@ namespace TacticalGame
             float dist = dir.magnitude;
             if (dist < .01f) return true;
             int n = Physics.RaycastNonAlloc(from, dir / dist, hits, dist, ~(1 << 2), QueryTriggerInteraction.Ignore);
+            // A full nonalloc buffer can omit the closest hit.
+            var sightHits = n < hits.Length ? hits : Physics.RaycastAll(from, dir / dist, dist, ~(1 << 2), QueryTriggerInteraction.Ignore);
+            if (!ReferenceEquals(sightHits, hits)) n = sightHits.Length;
             float nearest = float.MaxValue;
             Collider first = null;
             for (int i = 0; i < n; i++)
             {
-                Collider c = hits[i].collider;
+                Collider c = sightHits[i].collider;
                 if (c.transform == transform || c.transform.IsChildOf(transform)) continue; // ignore self
-                if (hits[i].distance < nearest) { nearest = hits[i].distance; first = c; }
+                if (sightHits[i].distance < nearest) { nearest = sightHits[i].distance; first = c; }
             }
             // Visible when nothing blocks, or the first thing hit belongs to the player.
             return first == null || first.GetComponentInParent<PlayerController>() == player;

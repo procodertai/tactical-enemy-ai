@@ -47,6 +47,9 @@ namespace TacticalGame.Coordination
         float SightingLifetime => Positive(settings != null ? settings.SharedSightingLifetimeSeconds : 5f, 5f);
         float LeaseDuration => Positive(settings != null ? settings.DestinationLeaseSeconds : 12f, 12f);
         float OccupancyRadius => Positive(settings != null ? settings.OccupiedMarkerRadius : 1.25f, 1.25f);
+        internal float ClaimRenewalInterval => Mathf.Min(.5f, LeaseDuration * .5f);
+        internal bool IsAtDestination(Vector3 position, Vector3 destination) => Vector3.Distance(position, destination) <= OccupancyRadius;
+        internal bool IsCurrentMovement(MovementRequest request) => CoordinationEnabled && CurrentMove(request, out _);
         static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
         static bool Finite(Vector3 value) => Finite(value.x) && Finite(value.y) && Finite(value.z);
         static float Positive(float value, float fallback) => Finite(value) && value > 0 ? value : fallback;
@@ -241,7 +244,7 @@ namespace TacticalGame.Coordination
             else if (report.Status == MovementStatus.Arrived)
             {
                 if (!LiveMember(record.Owner, out var member) || !TryGetDestination(record.Marker, out var destination) ||
-                    Vector3.Distance(member.Position, destination.Position) > OccupancyRadius) return false;
+                    !IsAtDestination(member.Position, destination.Position)) return false;
                 record.Occupied = true; record.Expires = Time.time + LeaseDuration;
                 activeMoves.Remove(record.Owner); RefreshClaimSnapshots(); Log(record.Owner + " arrived at " + record.Marker);
             }
@@ -279,7 +282,7 @@ namespace TacticalGame.Coordination
                 { claimsToRelease.Add(Snapshot(record)); continue; }
                 if (record.Occupied && LiveMember(record.Owner, out var member))
                 {
-                    if (Vector3.Distance(member.Position, destination.Position) <= OccupancyRadius)
+                    if (IsAtDestination(member.Position, destination.Position))
                         record.Expires = Time.time + LeaseDuration;
                     else claimsToRelease.Add(Snapshot(record));
                 }

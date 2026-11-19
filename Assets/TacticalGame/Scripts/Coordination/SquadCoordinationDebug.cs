@@ -3,49 +3,95 @@ using UnityEngine;
 
 namespace TacticalGame.Coordination
 {
-    // Off by default. Manual example injects API data only; it never moves agents or observes the player.
+    // The manual report and reservations live in a separate coordinator for the overlay.
     [RequireComponent(typeof(SquadCoordinator)), DisallowMultipleComponent]
     public sealed class SquadCoordinationDebug : MonoBehaviour
     {
         [SerializeField] bool visible;
         SquadCoordinator squad;
+        SquadCoordinator example;
         GUIStyle textStyle;
         GUIStyle markerStyle;
         public bool Visible { get => visible; set => visible = value; }
+        public SquadCoordinator DisplayedSquad => example != null ? example : squad;
 
         void Awake() => squad = GetComponent<SquadCoordinator>();
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F3)) visible = !visible;
+            if (Input.GetKeyDown(KeyCode.F3))
+            {
+                visible = !visible;
+                if (!visible) CloseExample();
+            }
             if (!visible || squad == null) return;
-            if (Input.GetKeyDown(KeyCode.F4)) RunManualExample();
-            if (Input.GetKeyDown(KeyCode.F5)) squad.SetCoordinationEnabled(!squad.CoordinationEnabled);
+            if (Input.GetKeyDown(KeyCode.F4))
+            {
+                if (example == null) RunManualExample();
+                else CloseExample();
+            }
+            if (Input.GetKeyDown(KeyCode.F5))
+            {
+                CloseExample();
+                squad.SetCoordinationEnabled(!squad.CoordinationEnabled);
+            }
+        }
+
+        void CloseExample()
+        {
+            if (example == null) return;
+            Destroy(example.gameObject);
+            example = null;
+        }
+
+        sealed class ExampleMember : ISquadMember
+        {
+            readonly ISquadMember member;
+            public ExampleMember(ISquadMember member) { this.member = member; }
+            public string EnemyId => member.EnemyId;
+            public bool IsAlive => member.IsAlive;
+            public Vector3 Position => member.Position;
+        }
+
+        sealed class ExampleDestination : ITacticalDestination
+        {
+            readonly ITacticalDestination marker;
+            public ExampleDestination(ITacticalDestination marker) { this.marker = marker; }
+            public int MarkerId => marker.MarkerId;
+            public MarkerKind Kind => marker.Kind;
+            public Vector3 Position => marker.Position;
         }
 
         public bool RunManualExample()
         {
+            if (!Application.isPlaying) return false;
             if (squad == null) squad = GetComponent<SquadCoordinator>();
             if (squad == null || squad.MemberCount == 0) return false;
             var candidates = new List<ITacticalDestination>();
             foreach (var destination in squad.Destinations)
                 if (destination.Kind == MarkerKind.Cover) candidates.Add(destination);
             if (candidates.Count < squad.MemberCount) return false;
-            squad.SetCoordinationEnabled(true);
-            squad.ResetCoordinationContext();
-            // This is an explicit test observation at a chosen marker, NOT a live player position.
-            squad.ReportSighting(new SightingReport(squad.Members[0].EnemyId, candidates[0].Position, Time.time));
-            squad.TryReserveDestination(squad.Members[0].EnemyId, candidates[0].MarkerId);
-            for (int i = 1; i < squad.MemberCount; i++)
+            CloseExample();
+            var preview = new GameObject("Squad debug example");
+            preview.transform.SetParent(transform, false);
+            example = preview.AddComponent<SquadCoordinator>();
+            example.Configure(null, null, squad.Settings);
+            foreach (var member in squad.Members) example.RegisterEnemy(new ExampleMember(member));
+            foreach (var marker in squad.Destinations) example.RegisterDestination(new ExampleDestination(marker));
+            visible = true;
+            example.ReportSighting(new SightingReport(example.Members[0].EnemyId, candidates[0].Position, Time.time));
+            example.TryReserveDestination(example.Members[0].EnemyId, candidates[0].MarkerId);
+            for (int i = 1; i < example.MemberCount; i++)
             {
-                squad.TryReserveDestination(squad.Members[i].EnemyId, candidates[0].MarkerId);
-                squad.TryReserveDestination(squad.Members[i].EnemyId, candidates[i].MarkerId);
+                example.TryReserveDestination(example.Members[i].EnemyId, candidates[0].MarkerId);
+                example.TryReserveDestination(example.Members[i].EnemyId, candidates[i].MarkerId);
             }
             return true;
         }
 
         void OnGUI()
         {
-            if (!visible || squad == null) return;
+            var displayed = DisplayedSquad;
+            if (!visible || displayed == null) return;
             float scale = Mathf.Max(.25f, Mathf.Min(Screen.width / 1440f, Screen.height / 900f));
             Matrix4x4 previous = GUI.matrix;
             int previousDepth = GUI.depth;
@@ -53,52 +99,52 @@ namespace TacticalGame.Coordination
             GUI.depth = -10;
             if (textStyle == null) textStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, wordWrap = true };
             var oldColor = GUI.color;
-            DrawOverview(scale);
+            DrawOverview(displayed, scale);
             float panelHeight = Mathf.Min(Screen.height / scale - 235, 640);
             GUI.color = new Color(.02f, .04f, .06f, .96f);
             GUI.DrawTexture(new Rect(30, 205, 550, panelHeight), Texture2D.whiteTexture);
             GUI.color = Color.white;
             float y = 221;
-            Row(ref y, "SQUAD / " + (squad.CoordinationEnabled ? "ON" : "OFF") + " / round " + squad.RoundVersion);
+            Row(ref y, (example != null ? "SQUAD EXAMPLE / " : "SQUAD / ") + (displayed.CoordinationEnabled ? "ON" : "OFF") + " / round " + displayed.RoundVersion);
             Row(ref y, "F3 close  ·  F4 manual example  ·  F5 toggle", 15);
-            Row(ref y, "Example supplies reports/requests only. Guard tactics are not connected.", 14, 43);
-            foreach (var member in squad.Members)
+            if (example != null) Row(ref y, "Sample sightings and claims are isolated from this round.", 14, 30);
+            foreach (var member in displayed.Members)
             {
-                string claim = squad.TryGetDestinationClaim(member.EnemyId, out var owned) ? "marker " + owned.MarkerId : "no claim";
-                Row(ref y, member.EnemyId + " / " + squad.GetRole(member.EnemyId) + " / " + claim);
+                string claim = displayed.TryGetDestinationClaim(member.EnemyId, out var owned) ? "marker " + owned.MarkerId : "no claim";
+                Row(ref y, member.EnemyId + " / " + displayed.GetRole(member.EnemyId) + " / " + claim);
             }
-            if (squad.TryGetSharedSighting(out var sighting))
+            if (displayed.TryGetSharedSighting(out var sighting))
                 Row(ref y, "Reported " + sighting.Report.ObservedPosition + " / age " + sighting.AgeSeconds.ToString("0.0") + "s", 14, 38);
             else Row(ref y, "Shared sighting: none / expired", 14);
-            Row(ref y, "Claims " + squad.Claims.Count + " / conflicts " + squad.Metrics.ReservationConflicts + " / expired " + squad.Metrics.ClaimsExpired, 14);
-            Row(ref y, "Sightings accepted " + squad.Metrics.SightingsAccepted + " / replans " + squad.Metrics.ReplanRequests, 14);
-            for (int i = squad.DebugEvents.Count - 1; i >= 0 && y < 205 + panelHeight - 40; i--)
+            Row(ref y, "Claims " + displayed.Claims.Count + " / conflicts " + displayed.Metrics.ReservationConflicts + " / expired " + displayed.Metrics.ClaimsExpired, 14);
+            Row(ref y, "Sightings accepted " + displayed.Metrics.SightingsAccepted + " / replans " + displayed.Metrics.ReplanRequests, 14);
+            for (int i = displayed.DebugEvents.Count - 1; i >= 0 && y < 205 + panelHeight - 40; i--)
             {
-                var item = squad.DebugEvents[i];
+                var item = displayed.DebugEvents[i];
                 Row(ref y, item.Time.ToString("0.0") + "  " + item.Message, 13, 34);
             }
             GUI.color = oldColor; GUI.matrix = previous; GUI.depth = previousDepth;
         }
 
-        void DrawOverview(float scale)
+        void DrawOverview(SquadCoordinator displayed, float scale)
         {
             var game = GameSession.Instance;
             if (game == null || !game.Overview || game.squadCoordinator != squad || game.overviewCamera == null) return;
             var camera = game.overviewCamera;
             if (markerStyle == null)
                 markerStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleCenter };
-            foreach (var claim in squad.Claims)
-                if (squad.TryGetEnemy(claim.EnemyId, out var member) && squad.TryGetDestination(claim.MarkerId, out var destination) &&
+            foreach (var claim in displayed.Claims)
+                if (displayed.TryGetEnemy(claim.EnemyId, out var member) && displayed.TryGetDestination(claim.MarkerId, out var destination) &&
                     Project(camera, member.Position, scale, out var from) && Project(camera, destination.Position, scale, out var to))
                     DrawLine(from, to, new Color(.3f, 1f, .65f, .8f));
-            foreach (var destination in squad.Destinations)
+            foreach (var destination in displayed.Destinations)
             {
                 if (!Project(camera, destination.Position, scale, out var point)) continue;
                 string prefix = destination.Kind == MarkerKind.Cover ? "C" : destination.Kind == MarkerKind.Flank ? "F" : "R";
                 var color = destination.Kind == MarkerKind.Cover ? Color.cyan : destination.Kind == MarkerKind.Flank ? new Color(.85f, .6f, 1f) : Color.yellow;
                 MarkerLabel(point, prefix + destination.MarkerId, color);
             }
-            foreach (var member in squad.Members)
+            foreach (var member in displayed.Members)
                 if (Project(camera, member.Position, scale, out var point))
                     MarkerLabel(point + Vector2.up * 25, "E" + member.EnemyId, Color.white);
         }

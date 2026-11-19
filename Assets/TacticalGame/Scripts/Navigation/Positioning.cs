@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
+using TacticalGame.Coordination;
 using UnityEngine;
 
 namespace TacticalGame
 {
-    public sealed class Positioning : MonoBehaviour
+    public sealed class Positioning : MonoBehaviour, IPositioningProvider
     {
         public static Positioning Instance { get; private set; }
         public float eyeHeight = 1.45f;     // same height BasicGuard shoots from
@@ -13,14 +14,49 @@ namespace TacticalGame
         TacticalMarker[] markers = new TacticalMarker[0];
 
         void Awake() { Instance = this; }
+        void OnDestroy() { if (Instance == this) Instance = null; }
 
         void Start()
         {
-#if UNITY_2023_1_OR_NEWER
+#if UNITY_6000_6_OR_NEWER
+            markers = FindObjectsByType<TacticalMarker>();
+#elif UNITY_2023_1_OR_NEWER
             markers = FindObjectsByType<TacticalMarker>(FindObjectsSortMode.None);
 #else
             markers = FindObjectsOfType<TacticalMarker>();
 #endif
+        }
+
+        public IReadOnlyList<ReachableDestination> GetReachableCandidates(string enemyId, MarkerKind kind, SightingReport? knownThreat)
+        {
+            var game = GameSession.Instance;
+            var squad = game != null ? game.squadCoordinator : null;
+            var pathfinder = AStarPathfinder.Instance;
+            if (squad == null || pathfinder == null || !squad.TryGetEnemy(enemyId, out var enemy) || !enemy.IsAlive)
+                return Array.Empty<ReachableDestination>();
+
+            var ranked = new List<(ReachableDestination Destination, float Cost)>();
+            foreach (var marker in squad.Destinations)
+            {
+                if (marker.Kind != kind || !Suitable(marker, enemy.Position, knownThreat)) continue;
+                var path = pathfinder.FindPath(enemy.Position, marker.Position);
+                if (path == null || !squad.IsAtDestination(PathMover.EndPosition(enemy.Position, path), marker.Position)) continue;
+                ranked.Add((new ReachableDestination(marker.MarkerId, marker.Position), PathLength(enemy.Position, path)));
+            }
+            ranked.Sort((a, b) => a.Cost == b.Cost ? a.Destination.MarkerId.CompareTo(b.Destination.MarkerId) : a.Cost.CompareTo(b.Cost));
+            var candidates = new ReachableDestination[ranked.Count];
+            for (int i = 0; i < ranked.Count; i++) candidates[i] = ranked[i].Destination;
+            return candidates;
+        }
+
+        bool Suitable(ITacticalDestination marker, Vector3 from, SightingReport? knownThreat)
+        {
+            if (!knownThreat.HasValue) return true;
+            Vector3 threat = knownThreat.Value.ObservedPosition;
+            if (marker.Kind == MarkerKind.Fallback)
+                return (marker.Position - threat).sqrMagnitude > (from - threat).sqrMagnitude;
+            bool inSight = HasLineOfSight(threat + Vector3.up * eyeHeight, marker.Position + Vector3.up * markerHeight);
+            return marker.Kind == MarkerKind.Flank ? inSight : !inSight;
         }
 
         // Walls block sight. Units (anything with Health) do not.

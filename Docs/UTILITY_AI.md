@@ -1,6 +1,6 @@
-# Utility AI: first combat milestone
+# Utility AI
 
-One stationary guard chooses Fire, Reload, or Hold. Perception, navigation and squad coordination remain future integrations.
+In Substation and Rail Depot, all three guards use perception and squad reports to score combat and movement actions. The standalone one-guard demo is still available for inspecting Fire, Reload, and Hold in isolation.
 
 ## 1. Understand the scorer
 
@@ -40,10 +40,12 @@ Run **Tactical Game → Utility AI → Check decision scenarios**. Expect a PASS
 - Defeat the enemy; confirm shots stop. Restart and check full health, six rounds and 24 reserve with default settings.
 - Let the round end; confirm combat stops. Check the ordinary Substation and Rail Depot scenes still use their existing baseline.
 
-## Integration and verification limits
+## Tactical movement
 
-`EnemyObservationProvider.Observe(range)` returns visibility, an aim point and distance. `PerceptionObservation` backs it with the guard's `GuardPerception` (view cone, wall occlusion, memory): the player counts as visible only while perception sees them and is Alerted, so the live player position is used only when legitimately seen. The scorer receives only the resulting snapshot. Movement and role scoring are deferred.
+`EnemyObservationProvider.Observe(range)` supplies visibility, aim and remembered observations from `GuardPerception`. The utility controller can use a fresher squad sighting when it lacks a current view. A shot still requires local visual confirmation and a clear physical ray.
+
+Flankers seek reachable flank markers. Support guards seek cover when they lack a shot, and injured guards can seek cover or fall back. The coordinator grants one guard each marker. A* reports arrival, blockage, or failure and lets the controller try another marker if a claim is lost. **F2** displays the first guard's action scores. **F3** opens live roles, reports, and claims. **F4** shows sample reservations in an isolated overlay. **F5** toggles coordination so guards use local observations for investigation.
 
 Keep Health and TargetDummy on the guard. The controller disables BasicGuard in Awake as a safeguard; the demo also saves it disabled. Do not run another attack controller on the same enemy.
 
-Verified locally: all runtime and editor C# sources compile against Unity 2021.3.45f2 assemblies, with one existing unused-variable warning in ProjectBuilder. All ten deterministic decision scenarios pass using Mono. Unity play-mode checks and Unity 6000.6 compilation have not been run. The demo is created by the editor command, not included as a pre-generated scene. Existing gameplay smoke checks still test the original maps and baseline; they do not validate this demo.
+The editor creates the standalone demo scene on demand. The gameplay smoke checks exercise the integrated guards on both regular maps.

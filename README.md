@@ -4,13 +4,13 @@ A single-player 3D first-person game for the Tactical Enemy AI course. **The mai
 
 Two editable industrial maps: **Substation** and **Rail Depot**. Restore two terminals in either order and interact with the exit before the six-minute clock expires. Includes walking, sprinting, jumping, mouse look, aiming, rifle fire, reloading, health, ammo and medical supplies, shooting feedback, synthesized sound, mission menus, pause, restart, and an overhead camera.
 
-Each map has three guards with a viewing cone, hearing, and short-term memory. A confirmed sighting can be shared with the squad. Guards warn before firing and need a clear shot. In Substation, the temporary A* chase investigates a position the guard saw, heard, or learned from the squad. Defeating the guards is optional. Completing the terminals and extracting is the mission.
+Each map has three guards with a viewing cone, hearing, and short-term memory. Guards share confirmed sightings and use Utility AI to decide when to fire, reload, investigate, flank, seek cover, or fall back. A* follows the chosen route and reports outcomes to the squad coordinator, which manages roles and exclusive destination claims. Defeating the guards is optional. Completing the terminals and extracting is the mission.
 
 The graphics now reuse **Unity Multiplayer FPS template 1.0.8**: rigged Armature characters and pose, assault rifles, modular environment meshes, PBR textures, and rifle/footstep sounds. Materials are adapted from the template's URP shaders to the starter's Built-in Render Pipeline. See [asset credits and adaptation details](Docs/TEMPLATE_ASSETS.md).
 
 Start with [the step-by-step running guide](Docs/RUNNING.md), then [the short learning guide](Docs/LEARNING.md).
 
-A local playable preview is available at `Builds/Compatibility2021/LastLight.exe`. It was built and checked with the complete Unity 2021.3.45f2 editor while the requested Unity 6000.6 installation awaits repair. See [exact verification results and limits](Docs/VERIFICATION.md).
+The original preview under `Builds/Compatibility2021` predates the integrated squad. Use the Windows build command below to package your current checkout.
 
 ## Quick start
 
@@ -30,14 +30,16 @@ A local playable preview is available at `Builds/Compatibility2021/LastLight.exe
 | R | Reload |
 | E | Interact with the object you are looking at |
 | Tab | Toggle overhead camera; the clock continues |
+| F2 | Show Guard 01's Utility AI scores |
+| F3 | Toggle the live squad panel |
+| F4 | Open or close the isolated squad example while the panel is open |
+| F5 | Toggle coordination while the panel is open |
 | Hold T | Temporarily show objective markers |
 | Escape | Pause / resume and release the mouse |
 
-## Local editor installation issue
+## Windows build
 
-The installed copy at `D:\Unity\Hub\Editor\6000.6.0f1` is incomplete: Unity reports that its Package Manager executable is missing, and its `Data/Tools` and Windows playback support folders are also absent. This prevents this editor from importing/compiling any project normally. Repair or reinstall **6000.6.0f1** through Unity Hub before using the quick start. See [running and troubleshooting](Docs/RUNNING.md).
-
-The game source can be compiled separately against the installed Unity 6000.6.0f1 assemblies with `Tools/Check-UnityCompilation.ps1`. A separate Unity 2021.3 verification copy is kept under the ignored `Artifacts` directory for runtime checks; the main project remains on 6000.6.0f1. This does not establish a complete Unity 6000.6 editor or player test; repeat the supplied checks after repairing that installation.
+Use Unity **6000.6.0f1** with Windows Build Support. In Edit mode choose **Tactical Game → Build Windows game**. The build packages the checked-out branch and places the Windows player in `Builds/LastLight`. Keep that folder together when copying the game. See [running and troubleshooting](Docs/RUNNING.md).
 
 ## Project structure
 
@@ -52,7 +54,7 @@ The game source can be compiled separately against the installed Unity 6000.6.0f
 | `Docs` | Running instructions, learning steps and verification notes |
 | `project-3-3d-plan.md` | Your longer course plan, preserved |
 
-Uses Unity's **Built-in Render Pipeline** and built-in **Input Manager**. The required template visuals are included under `Assets/ThirdParty/UnityMultiplayerFPS`; the game needs no networking, DOTS, NavMesh, or ML-Agents packages. Our code uses the repository license; the included Unity art retains its separate Unity Companion License. This is the game foundation and a temporary combat baseline, not the final tactical AI submission.
+Uses Unity's **Built-in Render Pipeline** and built-in **Input Manager**. The required template visuals are included under `Assets/ThirdParty/UnityMultiplayerFPS`; the game needs no networking, DOTS, NavMesh, or ML-Agents packages. Our code uses the repository license; the included Unity art retains its separate Unity Companion License.
 
 ## Editor tools
 

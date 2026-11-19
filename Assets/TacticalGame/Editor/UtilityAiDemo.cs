@@ -19,10 +19,11 @@ namespace TacticalGame.Editor
             var scene = EditorSceneManager.OpenScene(ProjectBuilder.SubstationPath);
             // Save a copy before touching any scene objects.
             if (!EditorSceneManager.SaveScene(scene, DemoPath)) throw new IOException("Could not create demo scene.");
-            var guards = UnityEngine.Object.FindObjectsOfType<BasicGuard>();
+            var guards = ProjectChecks.FindAll<BasicGuard>();
             Array.Sort(guards, (a, b) => string.CompareOrdinal(a.GetComponent<TargetDummy>().targetId, b.GetComponent<TargetDummy>().targetId));
             if (guards.Length == 0) throw new InvalidOperationException("Substation contains no guards.");
             var first = guards[0];
+            ProjectChecks.FindOne<GameSession>().useUtilitySquad = false;
             foreach (var guard in guards)
             {
                 guard.enabled = false;
