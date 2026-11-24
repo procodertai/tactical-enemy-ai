@@ -32,7 +32,8 @@ namespace TacticalGame.Coordination
             if (Input.GetKeyDown(KeyCode.F5))
             {
                 CloseExample();
-                squad.SetCoordinationEnabled(!squad.CoordinationEnabled);
+                if (GameSession.Instance == null || GameSession.Instance.AiMode == GuardAiMode.Squad)
+                    squad.SetCoordinationEnabled(!squad.CoordinationEnabled);
             }
         }
 
@@ -111,10 +112,10 @@ namespace TacticalGame.Coordination
             foreach (var member in displayed.Members)
             {
                 string claim = displayed.TryGetDestinationClaim(member.EnemyId, out var owned) ? "marker " + owned.MarkerId : "no claim";
-                Row(ref y, member.EnemyId + " / " + displayed.GetRole(member.EnemyId) + " / " + claim);
+                Row(ref y, member.EnemyId + " / " + displayed.GetRole(member.EnemyId) + LiveAction(member) + " / " + claim);
             }
             if (displayed.TryGetSharedSighting(out var sighting))
-                Row(ref y, "Reported " + sighting.Report.ObservedPosition + " / age " + sighting.AgeSeconds.ToString("0.0") + "s", 14, 38);
+                Row(ref y, "Guard " + sighting.Report.ReporterId + " reported " + sighting.Report.ObservedPosition + " / age " + sighting.AgeSeconds.ToString("0.0") + "s", 14, 38);
             else Row(ref y, "Shared sighting: none / expired", 14);
             Row(ref y, "Claims " + displayed.Claims.Count + " / conflicts " + displayed.Metrics.ReservationConflicts + " / expired " + displayed.Metrics.ClaimsExpired, 14);
             Row(ref y, "Sightings accepted " + displayed.Metrics.SightingsAccepted + " / replans " + displayed.Metrics.ReplanRequests, 14);
@@ -137,6 +138,9 @@ namespace TacticalGame.Coordination
                 if (displayed.TryGetEnemy(claim.EnemyId, out var member) && displayed.TryGetDestination(claim.MarkerId, out var destination) &&
                     Project(camera, member.Position, scale, out var from) && Project(camera, destination.Position, scale, out var to))
                     DrawLine(from, to, new Color(.3f, 1f, .65f, .8f));
+            foreach (var member in displayed.Members)
+                if (member is TargetDummy guard && guard.TryGetComponent<PathMover>(out var mover))
+                    DrawRoute(camera, scale, member.Position, mover);
             foreach (var destination in displayed.Destinations)
             {
                 if (!Project(camera, destination.Position, scale, out var point)) continue;
@@ -146,7 +150,29 @@ namespace TacticalGame.Coordination
             }
             foreach (var member in displayed.Members)
                 if (Project(camera, member.Position, scale, out var point))
-                    MarkerLabel(point + Vector2.up * 25, "E" + member.EnemyId, Color.white);
+                    MarkerLabel(point + Vector2.up * 25, "E" + member.EnemyId + LiveAction(member), Color.white);
+            if (displayed.TryGetSharedSighting(out var sighting) && Project(camera, sighting.Report.ObservedPosition, scale, out var reported))
+                MarkerLabel(reported + Vector2.down * 16, "Last seen · " + sighting.Report.ReporterId, new Color(1f, .75f, .3f));
+        }
+
+        static string LiveAction(ISquadMember member)
+        {
+            if (member is TargetDummy guard && guard.TryGetComponent<UtilityEnemyController>(out var utility) && utility.HasDecision)
+                return " / " + utility.CurrentAction;
+            return "";
+        }
+
+        static void DrawRoute(Camera camera, float scale, Vector3 from, PathMover mover)
+        {
+            var route = mover.ActiveRoute;
+            if (route == null) return;
+            for (int i = mover.NextWaypointIndex; i < route.Count; i++)
+            {
+                Vector3 to = route[i];
+                if (Project(camera, from, scale, out var start) && Project(camera, to, scale, out var end))
+                    DrawLine(start, end, new Color(.35f, .8f, 1f, .85f));
+                from = to;
+            }
         }
 
         static bool Project(Camera camera, Vector3 position, float scale, out Vector2 point)
@@ -158,7 +184,8 @@ namespace TacticalGame.Coordination
 
         void MarkerLabel(Vector2 point, string label, Color color)
         {
-            var bounds = new Rect(point.x - 27, point.y - 12, 54, 24);
+            float width = Mathf.Max(54, markerStyle.CalcSize(new GUIContent(label)).x + 16);
+            var bounds = new Rect(point.x - width * .5f, point.y - 12, width, 24);
             GUI.color = new Color(.015f, .025f, .04f, .9f);
             GUI.DrawTexture(bounds, Texture2D.whiteTexture);
             GUI.color = color;

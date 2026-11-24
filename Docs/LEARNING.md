@@ -43,7 +43,7 @@ Use the [CharacterController.Move documentation](https://docs.unity.com/en-us/en
 
 ## Where the later AI will connect
 
-Each orange guard root has **Health**, **TargetDummy**, and the temporary **BasicGuard** component. Disable BasicGuard before adding the future tactical controller. Keep perception, decisions, navigation and coordination in their own scripts so you can understand and demonstrate each piece.
+Each orange guard root has **Health**, **TargetDummy**, and the original **BasicGuard** component. The main maps install the Utility AI controller at runtime, which disables BasicGuard. Perception, scoring, navigation, coordination, and procedural leg movement remain in separate components.
 
 | Future course work | Existing foundation you can reuse |
 | --- | --- |
@@ -55,7 +55,7 @@ Each orange guard root has **Health**, **TargetDummy**, and the temporary **Basi
 
 The **AI LESSON MARKERS** object contains `TacticalMarker` components. These are suggestions for positions, visible as Scene-view gizmos. They do not check whether a position is good cover, reachable, visible, or claimed. Verify and refine them when you implement positioning.
 
-The basic guards refer directly to the player's position and check whether their shot is physically obstructed. This is a temporary gameplay shortcut, not a viewing-cone or memory-based perception system. There is no NavMeshAgent, A*, Utility AI scoring, shared memory, reinforcement learning, or network code to study around.
+Both play modes use a viewing cone, physical occlusion, and memory. Squad mode shares confirmed sightings and uses A* to reach tactically chosen markers. Chase Only uses the same perception, A*, and weapon with a simple investigate/fire/reload policy. Use **F2** for decision scores and **F3** for live squad state.
 
 ## Editing and sharing
 

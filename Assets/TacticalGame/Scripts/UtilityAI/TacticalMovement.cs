@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TacticalGame.Coordination;
 using UnityEngine;
 
@@ -15,10 +16,32 @@ namespace TacticalGame
         int requestId;
         int failedMarker;
         float avoidMarkerUntil, nextAttempt, renewAt;
+        float defendedHealth, settleUntil;
+        bool arrived, completedDefense;
+        readonly Dictionary<EnemyAction, float> retryAfter = new Dictionary<EnemyAction, float>();
 
         SquadCoordinator Squad => guard.SquadCoordinator;
         public bool AtMarker => claim.HasValue && Squad != null && Squad.CoordinationEnabled && !navigator.IsMoving &&
             Squad.IsAtDestination(guard.Position, markerPosition);
+        public bool SettlingAfterDefense => AtMarker && Time.time < settleUntil;
+
+        public bool CanSelect(EnemyAction action)
+        {
+            if (IsDefensive(action) && completedDefense && (guard.health.Current >= defendedHealth || Time.time < settleUntil))
+                return false;
+            return !retryAfter.TryGetValue(action, out var retryAt) || Time.time >= retryAt;
+        }
+
+        public void RefreshClaim()
+        {
+            if (claim.HasValue && Time.time >= renewAt) RenewClaim();
+            if (arrived || !AtMarker) return;
+            arrived = true;
+            if (!IsDefensive(markerAction)) return;
+            completedDefense = true;
+            defendedHealth = guard.health.Current;
+            settleUntil = Time.time + 1f;
+        }
 
         public TacticalMovement(TargetDummy guard, PathMover navigator)
         {
@@ -28,7 +51,6 @@ namespace TacticalGame
 
         public void Step(EnemyAction action, SightingReport? knowledge)
         {
-            if (claim.HasValue && Time.time >= renewAt) RenewClaim();
             if (!knowledge.HasValue)
             {
                 Stop();
@@ -44,14 +66,14 @@ namespace TacticalGame
                     ReleaseClaim();
                     nextAttempt = 0f;
                 }
-                if (Time.time < nextAttempt) return;
+                if (Time.time < nextAttempt || !CanSelect(action)) return;
                 ReleaseClaim();
                 nextAttempt = Time.time + .65f;
                 if (TryMoveToMarker(action, kind, target) ||
                     (kind == MarkerKind.Fallback && TryMoveToMarker(action, MarkerKind.Cover, target))) return;
-                if ((action == EnemyAction.Flank || action == EnemyAction.Support) && !NearInvestigationPoint(target.ObservedPosition))
-                    StartInvestigation(target.ObservedPosition);
-                else navigator.Stop();
+                // Let the scorer choose a different action while occupied or unreachable markers cool down.
+                retryAfter[action] = Time.time + 2f;
+                navigator.Stop();
                 return;
             }
 
@@ -87,6 +109,7 @@ namespace TacticalGame
             foreach (var candidate in positioning.GetReachableCandidates(guard.EnemyId, kind, target))
             {
                 if (candidate.MarkerId == failedMarker && Time.time < avoidMarkerUntil) continue;
+                if (IsDefensive(action) && squad.IsAtDestination(guard.Position, candidate.Position)) continue;
                 var result = squad.TryReserveDestination(guard.EnemyId, candidate.MarkerId);
                 if (result != DestinationReservationResult.Granted && result != DestinationReservationResult.AlreadyOwned) continue;
                 if (!squad.TryGetDestinationClaim(guard.EnemyId, out var reserved)) continue;
@@ -96,6 +119,7 @@ namespace TacticalGame
                     continue;
                 }
                 claim = reserved;
+                arrived = false;
                 markerAction = action;
                 markerPosition = candidate.Position;
                 renewAt = Time.time + squad.ClaimRenewalInterval;
@@ -104,6 +128,8 @@ namespace TacticalGame
             }
             return false;
         }
+
+        static bool IsDefensive(EnemyAction action) => action == EnemyAction.TakeCover || action == EnemyAction.FallBack;
 
         void Investigate(Vector3 destination)
         {

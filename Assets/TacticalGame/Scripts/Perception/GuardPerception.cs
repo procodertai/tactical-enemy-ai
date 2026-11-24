@@ -317,6 +317,8 @@ namespace TacticalGame
             GL.PopMatrix();
         }
 
+        GUIStyle roleLabelStyle;
+
         void OnGUI()
         {
             if (!showOverlay || !Application.isPlaying || !Active()) return;
@@ -326,14 +328,34 @@ namespace TacticalGame
             Vector3 sp = cam.WorldToScreenPoint(transform.position + Vector3.up * (eyeHeight + .9f));
             if (sp.z < 0f || sp.z > 60f) return;
             float x = sp.x - 40f, y = Screen.height - sp.y;
+            var bar = new Rect(x, y, 80f, 8f);
             Color old = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, .6f);
-            GUI.DrawTexture(new Rect(x, y, 80f, 8f), Texture2D.whiteTexture);
+            GUI.DrawTexture(bar, Texture2D.whiteTexture);
             GUI.color = StateColor();
             GUI.DrawTexture(new Rect(x + 1f, y + 1f, 78f * Awareness, 6f), Texture2D.whiteTexture);
             GUI.color = Color.white;
             GUI.Label(new Rect(x - 10f, y - 20f, 140f, 20f), State + (CanSeeTarget ? " (sees)" : ""));
+            DrawRoleLabel(bar);
             GUI.color = old;
+        }
+
+        void DrawRoleLabel(Rect bar)
+        {
+            var squad = dummy != null ? dummy.SquadCoordinator : null;
+            var role = squad != null ? squad.GetRole(dummy.EnemyId) : SquadRole.Unassigned;
+            if (role == SquadRole.Unassigned) return;
+
+            if (roleLabelStyle == null)
+                roleLabelStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 12 };
+            const float width = 68f, height = 18f, gap = 5f;
+            float left = bar.xMax + gap;
+            if (left + width > Screen.width) left = bar.xMin - gap - width;
+            var label = new Rect(left, bar.center.y - height * .5f, width, height);
+            GUI.color = new Color(0f, 0f, 0f, .7f);
+            GUI.DrawTexture(label, Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            GUI.Label(label, role.ToString(), roleLabelStyle);
         }
     }
 }

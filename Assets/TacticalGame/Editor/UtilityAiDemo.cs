@@ -57,6 +57,21 @@ namespace TacticalGame.Editor
             input.Visible = false;
             Require(UtilityScorer.Select(UtilityScorer.Evaluate(input), EnemyAction.Fire, true, 0f, .5f, .05f) == EnemyAction.Reload, "Invalid fire interrupted");
             input.Ammo = 6; input.Distance = 30; input.Visible = true; Expect(input, EnemyAction.Hold);
+            input.CanMove = input.HasKnownTarget = input.RetreatReady = true;
+            input.Role = Coordination.SquadRole.Attacker;
+            Expect(input, EnemyAction.FallBack);
+            input.RetreatReady = false;
+            Expect(input, EnemyAction.Investigate);
+            input.RetreatReady = true;
+            Require(UtilityScorer.SelectChaseOnly(input) == EnemyAction.Investigate, "Chase Only ignores retreat and role scores");
+            input.Distance = 8f;
+            input.SettlingAfterDefense = true;
+            Expect(input, EnemyAction.Fire);
+            input.ShotBlocked = true;
+            Expect(input, EnemyAction.Hold);
+            input.SettlingAfterDefense = false;
+            input.RetreatReady = false;
+            Expect(input, EnemyAction.Investigate);
             Debug.Log("PASS: Utility AI combat choices, health response, visibility, range, reserve, commitment, and interruption.");
         }
 

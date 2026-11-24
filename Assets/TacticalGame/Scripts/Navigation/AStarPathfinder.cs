@@ -11,7 +11,9 @@ namespace TacticalGame
         void Awake() { Instance = this; }
         void OnDestroy() { if (Instance == this) Instance = null; }
 
-        public List<Vector3> FindPath(Vector3 startPos, Vector3 targetPos)
+        public List<Vector3> FindPath(Vector3 startPos, Vector3 targetPos) => FindPath(startPos, targetPos, null);
+
+        internal List<Vector3> FindPath(Vector3 startPos, Vector3 targetPos, Vector3? occupied)
         {
             if (grid == null || !isActiveAndEnabled) return null;
             Node start = grid.NearestWalkable(grid.NodeFromWorldPoint(startPos));
@@ -40,6 +42,8 @@ namespace TacticalGame
                 foreach (Node nb in grid.GetNeighbours(current))
                 {
                     if (closed.Contains(nb)) continue;
+                    if (occupied.HasValue && CrossesOccupiedSpace(current == start ? startPos : current.worldPos, nb.worldPos, occupied.Value))
+                        continue;
                     int newG = current.gCost + Heuristic(current, nb);   // 10 straight, 14 diagonal
                     if (newG < nb.gCost || !open.Contains(nb))
                     {
@@ -51,6 +55,17 @@ namespace TacticalGame
                 }
             }
             return null;   // unreachable
+        }
+
+        static bool CrossesOccupiedSpace(Vector3 from, Vector3 to, Vector3 occupied)
+        {
+            from.y = to.y = occupied.y = 0f;
+            Vector3 offset = to - from;
+            float progress = offset.sqrMagnitude > 0f ? Mathf.Clamp01(Vector3.Dot(occupied - from, offset) / offset.sqrMagnitude) : 0f;
+            const float clearance = PathMover.GuardSeparation;
+            float minimumDistance = Mathf.Min((occupied - from).sqrMagnitude, clearance * clearance);
+            return (occupied - (from + offset * progress)).sqrMagnitude < minimumDistance - .0001f ||
+                (occupied - to).sqrMagnitude < clearance * clearance;
         }
 
         // Octile distance: 10 per straight step, 14 per diagonal step

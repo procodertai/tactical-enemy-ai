@@ -34,12 +34,19 @@ The original preview under `Builds/Compatibility2021` predates the integrated sq
 | F3 | Toggle the live squad panel |
 | F4 | Open or close the isolated squad example while the panel is open |
 | F5 | Toggle coordination while the panel is open |
+| F6 | Choose Squad or Chase Only on the briefing screen |
 | Hold T | Temporarily show objective markers |
 | Escape | Pause / resume and release the mouse |
 
 ## Windows build
 
-Use Unity **6000.6.0f1** with Windows Build Support. In Edit mode choose **Tactical Game → Build Windows game**. The build packages the checked-out branch and places the Windows player in `Builds/LastLight`. Keep that folder together when copying the game. See [running and troubleshooting](Docs/RUNNING.md).
+Close Unity for this project and run this command from the repository root in PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Tools\Build-Windows.ps1
+```
+
+The script uses Unity **6000.6.0f1** with Windows Build Support, builds the current checkout, and places the game in `Builds/LastLight`. It saves the previous build in a timestamped folder. Keep the entire game folder together when copying it. The editor menu **Tactical Game → Build Windows game** also builds both maps. See [running and troubleshooting](Docs/RUNNING.md).
 
 ## Project structure
 
@@ -59,6 +66,8 @@ Uses Unity's **Built-in Render Pipeline** and built-in **Input Manager**. The re
 ## Editor tools
 
 Coordination code lives under `Assets/TacticalGame/Scripts/Coordination`. Use **Tactical Game → Coordination → Run full coordination checks** to exercise the roster, shared sightings, roles, reservations, and movement feedback on both maps.
+
+**Tactical Game → AI Evaluation → Run chase-only comparison** runs the same two scripted walking routes per map in Squad and Chase Only modes. It writes per-run and summary CSVs to `Artifacts/Comparison`.
 
 The **Tactical Game** menu offers **Validate both maps**, **Run gameplay smoke checks**, and **Build Windows game**. Stop Play mode before running these tools. Save your scene changes before validation; validation opens both scenes. Gameplay checks temporarily run both rounds and write `Artifacts/gameplay-checks.txt`.
 

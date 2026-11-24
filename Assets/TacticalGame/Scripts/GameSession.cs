@@ -4,11 +4,13 @@ using UnityEngine.SceneManagement;
 namespace TacticalGame
 {
     public enum RoundState { Briefing, Playing, Paused, Won, Lost }
+    public enum GuardAiMode { Squad, ChaseOnly }
 
     // Mission rules only. This class deliberately makes no enemy decisions.
     public sealed class GameSession : MonoBehaviour
     {
         public static GameSession Instance { get; private set; }
+        static GuardAiMode selectedAiMode;
         public string missionName = "SUBSTATION";
         [TextArea] public string briefing;
         [Min(30)] public float roundSeconds = 360f;
@@ -23,6 +25,7 @@ namespace TacticalGame
         public string nextScene = "RailDepot";
 
         public RoundState State { get; private set; } = RoundState.Briefing;
+        public GuardAiMode AiMode { get; private set; }
         public float Remaining { get; private set; }
         public float Elapsed => roundSeconds - Remaining;
         public bool Overview { get; private set; }
@@ -57,6 +60,7 @@ namespace TacticalGame
         void Awake()
         {
             Instance = this;
+            AiMode = selectedAiMode;
             Time.timeScale = 1f;
             Remaining = roundSeconds;
             Application.targetFrameRate = 120;
@@ -67,6 +71,8 @@ namespace TacticalGame
 
         void Update()
         {
+            if (State == RoundState.Briefing && useUtilitySquad && Input.GetKeyDown(KeyCode.F6))
+                SetAiMode(AiMode == GuardAiMode.Squad ? GuardAiMode.ChaseOnly : GuardAiMode.Squad);
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (State == RoundState.Playing) Pause();
@@ -93,11 +99,21 @@ namespace TacticalGame
         public void Begin()
         {
             if (State != RoundState.Briefing) return;
+            if (AiMode == GuardAiMode.ChaseOnly && squadCoordinator != null) squadCoordinator.SetCoordinationEnabled(false);
             State = RoundState.Playing;
             Time.timeScale = 1f;
             SetPointer(true);
             Notify("Restore both terminals. Hold T for markers. Use cover against the guards.");
         }
+
+        public void SetAiMode(GuardAiMode mode)
+        {
+            if (State != RoundState.Briefing) return;
+            AiMode = selectedAiMode = mode;
+            if (squadCoordinator != null) squadCoordinator.SetCoordinationEnabled(mode == GuardAiMode.Squad);
+        }
+
+        public static void SetNextAiMode(GuardAiMode mode) => selectedAiMode = mode;
 
         public void Pause()
         {

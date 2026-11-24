@@ -10,6 +10,6 @@ The values are public Inspector fields on the **Basic Guard** component. To make
 
 There is no A*, movement planning, cover selection, Utility AI scoring, viewing cone, last-seen memory, destination reservation, role assignment, squad communication or reinforcement learning. The basic distance/raycast check exists only to allow a sensible, physically blocked attack; your course perception system will replace this shortcut.
 
-Keep `Health` and the target's visual response when adding the later tactical controller, and disable/remove `BasicGuard` so two controllers do not fire at the same time. Do not present this temporary baseline as the course's tactical AI implementation.
+The regular maps keep `Health` and the target's visual response. Their runtime bootstrap installs the Utility AI controller, which disables `BasicGuard` so one controller owns combat. The Chase Only mode uses the same runtime weapon, perception, and navigation as Squad mode.
 
 World-space enemy names and decorative map text are hidden. Terminal status is attached to the console screen, and the exit has a small physical sign. **Hold T** for objective markers or press **Tab** for the overhead map, keeping the normal aiming view clear.

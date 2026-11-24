@@ -9,9 +9,11 @@ namespace TacticalGame
     {
         public float HealthFraction;
         public int Ammo, Capacity, Reserve;
-        public bool Visible;
+        public bool Visible, ShotBlocked;
         public float Distance, Range;
         public bool CanMove, HasKnownTarget, AtTacticalPosition;
+        public bool CoverReady, FlankReady, RetreatReady, SupportReady;
+        public bool SettlingAfterDefense;
         public SquadRole Role;
     }
 
@@ -33,25 +35,37 @@ namespace TacticalGame
             float health = Math.Max(0f, Math.Min(1f, input.HealthFraction));
             float missing = 1f - Math.Max(0f, Math.Min(1f, (float)input.Ammo / Math.Max(1, input.Capacity)));
             bool reload = input.Ammo < input.Capacity && input.Reserve > 0;
-            bool fire = input.Visible && input.Distance <= input.Range && input.Ammo > 0;
-            bool investigate = input.CanMove && input.HasKnownTarget && !fire;
-            bool tactical = input.CanMove && input.HasKnownTarget && input.Role != SquadRole.Unassigned;
+            bool fire = CanFire(input);
+            bool movementReady = input.CanMove && input.HasKnownTarget && !input.SettlingAfterDefense;
+            bool investigate = movementReady && !fire;
+            bool tactical = movementReady && input.Role != SquadRole.Unassigned;
             return new[] {
                 new ActionScore(EnemyAction.Reload, reload,
                     input.Ammo <= 0 ? 1f : !input.Visible ? .95f : .2f + .5f * missing + .45f * (1f - health),
                     !reload ? "Full magazine or no reserve" : "Missing ammo and health pressure; safer without sight"),
                 new ActionScore(EnemyAction.Fire, fire, .65f + .25f * health,
-                    !fire ? "Needs visible target in range and loaded ammo" : "Clear target; confidence increases with health"),
+                    !fire ? "Needs a clear shot in range and loaded ammo" : "Clear target; confidence increases with health"),
                 new ActionScore(EnemyAction.Hold, true, .1f, "Remain stationary"),
                 new ActionScore(EnemyAction.Investigate, investigate, .55f, "Move toward the latest known position"),
-                new ActionScore(EnemyAction.TakeCover, tactical && health <= .55f, .96f, "Low health favors cover"),
-                new ActionScore(EnemyAction.Flank, tactical && input.Role == SquadRole.Flanker &&
+                new ActionScore(EnemyAction.TakeCover, tactical && input.CoverReady && health <= .55f, .96f, "Low health favors cover"),
+                new ActionScore(EnemyAction.Flank, tactical && input.FlankReady && input.Role == SquadRole.Flanker &&
                     (!input.AtTacticalPosition || !fire) && (!fire || input.Distance > 7f), .96f, "Take a separate firing position"),
-                new ActionScore(EnemyAction.FallBack, tactical && health <= .30f, 1.1f, "Withdraw at critical health"),
-                new ActionScore(EnemyAction.Support, tactical && input.Role == SquadRole.Support && !fire,
+                new ActionScore(EnemyAction.FallBack, tactical && input.RetreatReady && health <= .30f, 1.1f, "Withdraw at critical health"),
+                new ActionScore(EnemyAction.Support, tactical && input.SupportReady && input.Role == SquadRole.Support && !fire,
                     .72f, "Hold a covered support position")
             };
         }
+
+        public static EnemyAction SelectChaseOnly(UtilityInputs input)
+        {
+            if (input.Ammo <= 0 && input.Reserve > 0) return EnemyAction.Reload;
+            if (CanFire(input)) return EnemyAction.Fire;
+            if (input.CanMove && input.HasKnownTarget) return EnemyAction.Investigate;
+            return EnemyAction.Hold;
+        }
+
+        public static bool CanFire(UtilityInputs input) => input.Visible && !input.ShotBlocked &&
+            input.Distance <= input.Range && input.Ammo > 0;
 
         public static EnemyAction Select(ActionScore[] scores, EnemyAction current, bool initialized,
             float heldSeconds, float minimumHold, float margin)

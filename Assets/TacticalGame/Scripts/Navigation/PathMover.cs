@@ -9,6 +9,7 @@ namespace TacticalGame
     public sealed class PathMover : MonoBehaviour, IEnemyNavigation
     {
         public static readonly List<PathMover> All = new List<PathMover>();
+        internal const float GuardSeparation = .7f;
 
         public float speed = 3.5f;
         public float turnSpeed = 8f;
@@ -16,6 +17,13 @@ namespace TacticalGame
 
         public bool IsMoving => path != null && index < path.Count;
         public bool PathFailed { get; private set; }
+        internal IReadOnlyList<Vector3> ActiveRoute => IsMoving ? path : null;
+        internal int NextWaypointIndex => index;
+        public bool TryGetRouteGoal(out Vector3 goal)
+        {
+            goal = IsMoving ? path[path.Count - 1] : default;
+            return IsMoving;
+        }
         public event Action<MovementReport> MovementReported;
 
         List<Vector3> path;
@@ -25,7 +33,9 @@ namespace TacticalGame
         MovementRequest? trackedMove;
         readonly RaycastHit[] nearbyHits = new RaycastHit[12];
         float nextObstructionReport;
+        float blockedSince;
         string lastBlockerId;
+        Vector3 destination;
 
         void OnEnable()  { All.Add(this); }
         void OnDisable() { All.Remove(this); Stop(); }
@@ -43,6 +53,7 @@ namespace TacticalGame
 
         bool SetPath(Vector3 destination)
         {
+            this.destination = destination;
             var pf = AStarPathfinder.Instance;
             path = pf != null ? pf.FindPath(transform.position, destination) : null;
             index = 0;
@@ -109,27 +120,50 @@ namespace TacticalGame
 
         bool WaitForGuard(SquadCoordinator squad, Vector3 step)
         {
-            const float separation = .7f;
             foreach (var member in squad.Members)
             {
                 if (!member.IsAlive || member.EnemyId == guard.EnemyId) continue;
                 Vector3 offset = member.Position - transform.position;
                 offset.y = 0;
                 float after = (offset - step).sqrMagnitude;
-                if (after >= separation * separation || after >= offset.sqrMagnitude) continue;
-                if (squad.CoordinationEnabled && (member.EnemyId != lastBlockerId || Time.time >= nextObstructionReport))
+                if (after >= GuardSeparation * GuardSeparation || after >= offset.sqrMagnitude) continue;
+                bool firstBlockedFrame = member.EnemyId != lastBlockerId;
+                if (firstBlockedFrame)
                 {
-                    if (trackedMove.HasValue && member.EnemyId != lastBlockerId)
-                        MovementReported?.Invoke(new MovementReport(trackedMove.Value, MovementStatus.Obstructed, member.EnemyId));
+                    blockedSince = Time.time;
                     lastBlockerId = member.EnemyId;
-                    nextObstructionReport = Time.time + .25f;
-                    var instruction = squad.ReportObstruction(guard.EnemyId, member.EnemyId);
-                    if (instruction.Action == YieldAction.Replan) Stop();
+                    nextObstructionReport = 0f;
+                    if (trackedMove.HasValue && squad.CoordinationEnabled)
+                        MovementReported?.Invoke(new MovementReport(trackedMove.Value, MovementStatus.Obstructed, member.EnemyId));
                 }
+                if (squad.CoordinationEnabled && Time.time >= nextObstructionReport)
+                {
+                    nextObstructionReport = Time.time + .25f;
+                    squad.ReportObstruction(guard.EnemyId, member.EnemyId);
+                }
+                if (squad.TryGetYieldInstruction(guard.EnemyId, out var instruction))
+                {
+                    if (instruction.Action == YieldAction.Replan && trackedMove.HasValue) { Stop(); return true; }
+                    if (instruction.Action == YieldAction.Wait) return true;
+                }
+                if (Time.time - blockedSince >= .75f) RerouteAround(member.Position);
                 return true;
             }
             lastBlockerId = null;
             return squad.TryGetYieldInstruction(guard.EnemyId, out var activeInstruction) && activeInstruction.Action == YieldAction.Wait;
+        }
+
+        void RerouteAround(Vector3 blocker)
+        {
+            var route = AStarPathfinder.Instance?.FindPath(transform.position, destination, blocker);
+            if (route == null || route.Count == 0)
+            {
+                Finish(MovementStatus.Failed, "A teammate blocks the route and no detour is available");
+                return;
+            }
+            path = route;
+            index = 0;
+            lastBlockerId = null;
         }
 
         bool HitsSolidObstacle(Vector3 step)

@@ -45,7 +45,15 @@ Your health starts at 100. The **red floor plate with yellow stripes in the sout
 
 ## 5. Run without the editor
 
-With Unity 6000.6.0f1 and Windows Build Support installed:
+With Unity 6000.6.0f1 and Windows Build Support installed, close the project in Unity and run this from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Tools\Build-Windows.ps1
+```
+
+The command opens Unity in batch mode and publishes a verified build to `Builds/LastLight`. It preserves the previous build in a timestamped folder. If Unity is installed elsewhere, pass `-UnityExe "C:\path\to\Unity.exe"`. Build logs are written to `Logs`.
+
+To build from the Unity editor:
 
 1. Stop Play mode and save your scenes.
 2. Select **Tactical Game → Build Windows game**.
@@ -53,6 +61,10 @@ With Unity 6000.6.0f1 and Windows Build Support installed:
 4. Open `Builds/LastLight/LastLight.exe`.
 
 Keep the entire `Builds/LastLight` folder together, including the `LastLight_Data` directory and Unity DLLs. Copy the whole folder when sharing the playable game. The build packages the branch you have checked out. The output is ignored by Git because it can be regenerated.
+
+On the briefing screen, press **F6** to choose Squad or Chase Only before starting the mission.
+
+To watch live coordination, start Substation in Squad mode and press **F3**. Let a guard spot you long enough to report a sighting. The panel shows who reported it, each guard's decision, and any marker claim. Press **Tab** to follow blue A* routes and green claim lines from overhead. The overhead view suspends enemy fire. **F4** opens a separate example with sample reservations.
 
 You can also use **File → Build Profiles**, choose Windows and check that **Substation** and **RailDepot** are both in the scene list. Substation should be first. Unity documents the build process in its [Unity 6000.6 build script guide](https://docs.unity.com/en-us/engine/6000.6/manual/building-and-publishing/build-customize-build-pipeline/build-script-build).
 

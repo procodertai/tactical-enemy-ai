@@ -51,12 +51,8 @@ namespace TacticalGame
         public bool TryFire(Vector3 point, float dt)
         {
             if (!Active || IsReloading || Ammo <= 0) return false;
-            Vector3 origin = transform.position + Vector3.up * 1.45f;
-            Vector3 direction = point - origin;
             // Never shoot through a wall, even if an observation is stale.
-            if (direction.sqrMagnitude > range * range ||
-                !Physics.Raycast(origin, direction.normalized, out var hit, range, ~0, QueryTriggerInteraction.Ignore) ||
-                hit.collider.GetComponentInParent<PlayerController>() != GameSession.Instance.player)
+            if (!TryGetShot(point, out var hit))
             { StopAiming(); return false; }
             if (!aiming) { aiming = true; warningLeft = warningSeconds; }
             if (warningLight != null) { warningLight.enabled = true; warningLight.intensity = 1.3f + Mathf.Sin(Time.time * 14f) * .6f; }
@@ -64,10 +60,29 @@ namespace TacticalGame
             if (warningLeft > 0f || shotLeft > 0f) return false;
             Ammo--; ShotsFired++; shotLeft = shotInterval;
             GameSession.Instance.player.health.TakeDamage(damage);
-            if (tracer != null) { tracer.SetPosition(0, origin + direction.normalized * .6f); tracer.SetPosition(1, hit.point); tracer.enabled = true; }
+            if (tracer != null)
+            {
+                Vector3 origin = transform.position + Vector3.up * 1.45f;
+                tracer.SetPosition(0, origin + (point - origin).normalized * .6f);
+                tracer.SetPosition(1, hit.point);
+                tracer.enabled = true;
+            }
             flashLeft = .07f;
             if (GameAudio.Instance != null) GameAudio.Instance.EnemyShot();
             return true;
+        }
+
+        public bool HasClearShot(Vector3 point) => TryGetShot(point, out _);
+
+        bool TryGetShot(Vector3 point, out RaycastHit hit)
+        {
+            Vector3 origin = transform.position + Vector3.up * 1.45f;
+            Vector3 direction = point - origin;
+            hit = default;
+            var game = GameSession.Instance;
+            return game != null && direction.sqrMagnitude <= range * range &&
+                Physics.Raycast(origin, direction.normalized, out hit, range, ~0, QueryTriggerInteraction.Ignore) &&
+                hit.collider.GetComponentInParent<PlayerController>() == game.player;
         }
 
         public void StopAiming() { aiming = false; if (warningLight != null) warningLight.enabled = false; }

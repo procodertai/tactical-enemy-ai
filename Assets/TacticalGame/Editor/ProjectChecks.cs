@@ -68,16 +68,25 @@ namespace TacticalGame.Editor
         public static void BuildWindows()
         {
             ValidateMaps();
-            Directory.CreateDirectory("Builds/LastLight");
+            const string outputOption = "-lastLightBuildOutput";
+            string output = "Builds/LastLight/LastLight.exe";
+            var args = Environment.GetCommandLineArgs();
+            int index = Array.IndexOf(args, outputOption);
+            if (index >= 0)
+            {
+                Require(index + 1 < args.Length, "Missing path after " + outputOption);
+                output = Path.GetFullPath(args[index + 1]);
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(output));
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { ProjectBuilder.SubstationPath, ProjectBuilder.DepotPath },
-                locationPathName = "Builds/LastLight/LastLight.exe",
+                locationPathName = output,
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.None
             });
             Require(report.summary.result == BuildResult.Succeeded, "Windows build failed: " + report.summary.result);
-            Debug.Log("LAST LIGHT: Windows game built at Builds/LastLight/LastLight.exe");
+            Debug.Log("LAST LIGHT: Windows game built at " + output);
         }
 
         public static void GenerateAndBuild()
@@ -144,6 +153,11 @@ namespace TacticalGame.Editor
         static Vector3 tacticalTestSighting;
         static float tacticalTestDeadline;
         static int tacticalArrivals;
+        static float detourDeadline;
+        static bool sawDetourStride;
+        static readonly Vector3 RetreatMarker = new Vector3(-6.5f, 0f, -8.5f);
+        static readonly Vector3 RetreatThreat = new Vector3(-6.5f, 0f, -15.5f);
+        static bool sawRetreatMove;
         static readonly List<string> Results = new List<string>();
         const string Running = "LastLight.PlayChecks";
 
@@ -400,6 +414,118 @@ namespace TacticalGame.Editor
                         ProjectChecks.Require(!game.squadCoordinator.TryGetDestinationClaim(defeated.EnemyId, out _),
                             "Defeat releases the guard's tactical claim");
                         Results.Add("PASS " + game.missionName + ": role-based actions, reachable flank and cover claims, live A* arrival, defeat cleanup and round reset");
+                        game.Restart();
+                        stage++; waitUntil = Time.unscaledTime + .4f; break;
+                    case 20:
+                        foreach (var sensor in ProjectChecks.FindAll<GuardPerception>()) sensor.enabled = false;
+                        var injured = game.targets[0];
+                        foreach (var controller in ProjectChecks.FindAll<UtilityEnemyController>())
+                            controller.enabled = controller.gameObject == injured.gameObject;
+                        var markerIds = new List<int>();
+                        foreach (var marker in game.squadCoordinator.Destinations) markerIds.Add(marker.MarkerId);
+                        foreach (int id in markerIds) game.squadCoordinator.UnregisterDestination(id);
+                        injured.health.TakeDamage(80f);
+                        game.Begin();
+                        game.ToggleOverview();
+                        ProjectChecks.Require(game.squadCoordinator.ReportSighting(new SightingReport(injured.EnemyId, new Vector3(-6.5f, 0, -9.5f), Time.time)),
+                            "Movement fallback test supplies known target");
+                        stage++; waitUntil = Time.unscaledTime + 1.25f; break;
+                    case 21:
+                        var lead = game.targets[0];
+                        var leadController = lead.GetComponent<UtilityEnemyController>();
+                        ProjectChecks.Require(leadController.CurrentAction == EnemyAction.Investigate,
+                            "A failed cover and retreat choice lets the injured guard investigate");
+                        leadController.enabled = false;
+                        var stationary = game.targets[2];
+                        lead.transform.position = new Vector3(-6.5f, lead.transform.position.y, -14.5f);
+                        stationary.transform.position = new Vector3(-6.5f, stationary.transform.position.y, -12.5f);
+                        Physics.SyncTransforms();
+                        ProjectChecks.Require(lead.GetComponent<PathMover>().MoveTo(new Vector3(-6.5f, 0, -8.5f)), "Stationary-blocker test starts with an A* route");
+                        sawDetourStride = false;
+                        detourDeadline = Time.time + 5f;
+                        stage++; break;
+                    case 22:
+                        var legs = game.targets[0].GetComponent<GuardLocomotion>();
+                        ProjectChecks.Require(legs.HasLegRig, "Locomotion finds the legs on the actual guard rig");
+                        sawDetourStride |= legs.HasStride;
+                        var detourMover = game.targets[0].GetComponent<PathMover>();
+                        if (detourMover.IsMoving && Time.time < detourDeadline) break;
+                        Vector3 position = game.targets[0].Position;
+                        ProjectChecks.Require(Mathf.Abs(position.x + 6.5f) < .25f && Mathf.Abs(position.z + 8.5f) < .25f &&
+                            game.squadCoordinator.Metrics.ObstructionReports > 0,
+                            $"Priority guard detours around a stationary teammate. End position {position}, path failed {detourMover.PathFailed}, " +
+                            $"obstruction reports {game.squadCoordinator.Metrics.ObstructionReports}");
+                        ProjectChecks.Require(sawDetourStride, "The actual guard model animates its legs while moving");
+                        Results.Add("PASS " + game.missionName + ": unavailable movement fallback, stationary-teammate detour and movement animation");
+                        game.Restart();
+                        stage++; waitUntil = Time.unscaledTime + .4f; break;
+                    case 23:
+                        var retreating = game.targets[0];
+                        foreach (var controller in ProjectChecks.FindAll<UtilityEnemyController>())
+                            controller.enabled = controller.gameObject == retreating.gameObject;
+                        foreach (var sensor in ProjectChecks.FindAll<GuardPerception>()) sensor.enabled = false;
+                        var previousMarkers = new List<int>();
+                        foreach (var marker in game.squadCoordinator.Destinations) previousMarkers.Add(marker.MarkerId);
+                        foreach (int id in previousMarkers) game.squadCoordinator.UnregisterDestination(id);
+                        var fallbackMarker = new GameObject("Regression fallback marker").AddComponent<TacticalMarker>();
+                        fallbackMarker.kind = MarkerKind.Fallback;
+                        fallbackMarker.id = 81;
+                        fallbackMarker.transform.position = RetreatMarker;
+                        game.squadCoordinator.RegisterDestination(fallbackMarker);
+                        retreating.transform.position = new Vector3(-6.5f, retreating.Position.y, -11.5f);
+                        retreating.health.TakeDamage(75f);
+                        Physics.SyncTransforms();
+                        game.Begin();
+                        ProjectChecks.Require(game.squadCoordinator.ReportSighting(new SightingReport(retreating.EnemyId, RetreatThreat, Time.time)),
+                            "Retreat recovery test supplies a known threat");
+                        sawRetreatMove = false;
+                        tacticalTestDeadline = Time.unscaledTime + 4f;
+                        stage++; break;
+                    case 24:
+                        var recovering = game.targets[0];
+                        var retreatNavigator = recovering.GetComponent<PathMover>();
+                        sawRetreatMove |= recovering.GetComponent<UtilityEnemyController>().CurrentAction == EnemyAction.FallBack && retreatNavigator.IsMoving;
+                        if ((!sawRetreatMove || retreatNavigator.IsMoving) && Time.unscaledTime < tacticalTestDeadline) break;
+                        ProjectChecks.Require(sawRetreatMove && Vector2.Distance(new Vector2(recovering.Position.x, recovering.Position.z),
+                            new Vector2(RetreatMarker.x, RetreatMarker.z)) < .25f, "A critically injured guard physically reaches the retreat marker");
+                        Place(player, RetreatThreat);
+                        var recoveringSensor = recovering.GetComponent<GuardPerception>();
+                        recoveringSensor.secondsToNotice = .1f;
+                        recoveringSensor.enabled = true;
+                        tacticalTestDeadline = Time.unscaledTime + 3.5f;
+                        stage++; break;
+                    case 25:
+                        var returnedFire = game.targets[0].GetComponent<EnemyWeapon>();
+                        if (returnedFire.ShotsFired == 0 && Time.unscaledTime < tacticalTestDeadline) break;
+                        ProjectChecks.Require(returnedFire.ShotsFired > 0 && player.health.Current < player.health.maximum,
+                            "Guard resumes real fire after withdrawing and reacquiring the player");
+                        guardTestShots = returnedFire.ShotsFired;
+                        guardTestPosition = game.targets[0].Position;
+                        guardTestWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        guardTestWall.transform.position = (guardTestPosition + player.transform.position) * .5f + Vector3.up * 1.4f;
+                        guardTestWall.transform.localScale = new Vector3(3, 3, .3f);
+                        Physics.SyncTransforms();
+                        tacticalTestDeadline = Time.unscaledTime + 4f;
+                        stage++; waitUntil = Time.unscaledTime + .8f; break;
+                    case 26:
+                        var resumed = game.targets[0];
+                        // Give a partial magazine time to reload safely if the unsettled guard chose Reload.
+                        if (resumed.GetComponent<EnemyWeapon>().IsReloading && Time.unscaledTime < tacticalTestDeadline)
+                        {
+                            waitUntil = Time.unscaledTime + .2f;
+                            break;
+                        }
+                        ProjectChecks.Require(resumed.GetComponent<EnemyWeapon>().ShotsFired == guardTestShots,
+                            "Returning to cover blocks fire from the recovered guard");
+                        if (Vector3.Distance(resumed.Position, guardTestPosition) < .05f && Time.unscaledTime < tacticalTestDeadline)
+                        {
+                            waitUntil = Time.unscaledTime + .1f;
+                            break;
+                        }
+                        ProjectChecks.Require(Vector3.Distance(resumed.Position, guardTestPosition) > .05f,
+                            "Guard can leave the completed retreat position after losing sight");
+                        UnityEngine.Object.DestroyImmediate(guardTestWall);
+                        Results.Add("PASS " + game.missionName + ": withdrawal completes, guard returns fire and can move again");
                         if (sceneIndex == 0)
                         {
                             sceneIndex = 1;

@@ -6,7 +6,7 @@
 
 The group is building **one integrated enemy AI system with four developers**. Each of the three enemies will use the work of all four teammates.
 
-These diagrams follow the [3D project plan](project-3-3d-plan.md). **The behavior diagrams describe the intended system.** The shared interfaces exist, but most tactical behavior still needs implementation and teammate review.
+These diagrams follow the [3D project plan](project-3-3d-plan.md). The current game integrates perception, Utility AI, A* navigation, and squad coordination on both maps. The diagrams show the design and historical implementation stages.
 
 The diagrams use Mermaid. Open this document in a Markdown viewer that supports Mermaid to see rendered charts; the diagram source remains readable in a text editor.
 
@@ -140,7 +140,7 @@ sequenceDiagram
     participant U as R1 Decision / executor
     participant N as R2 Positioning / navigation
 
-    Note over P,N: Intended behavior — interfaces exist; services still need implementation
+        Note over P,N: Perception, Utility AI, navigation and coordination
 
     P->>P: Check visibility and update local memory
     P->>S: ReportSighting(SightingReport)
@@ -398,4 +398,4 @@ flowchart TD
 
 In this extension, learning chooses **high-level actions**. It does not replace collision handling, path following, weapon mechanics or the need for legitimate observations.
 
-**Current project status — 18 November 2026:** the playable foundation and temporary `BasicGuard` exist; the shared contract types and identity adapters also exist. Team approval of those interfaces is pending. The next coordination work is to establish the squad record and registration, then exclusive destination reservations.
+**Current project status:** Both maps run the integrated hand-written AI. The briefing offers Squad and Chase Only modes, and the editor can run a repeatable comparison on both maps. See [verification](Docs/VERIFICATION.md) for the checks and measured results.

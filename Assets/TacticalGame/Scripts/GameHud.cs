@@ -180,6 +180,8 @@ namespace TacticalGame
                 Label(x + 39, y + 210, 470, 100, game.briefing, 20, Color.white);
                 Label(x + 39, y + 327, 460, 85, "Restore terminals A and B in either order, then extract. Hold T for directions. Armed guards cover the routes; solid walls block their shots.", 17, Muted);
                 Label(x + 39, y + 427, 470, 90, "Guards warn before firing. Use solid cover, listen for movement, and collect medical supplies when hurt.", 15, Orange);
+                if (game.useUtilitySquad && game.State == RoundState.Briefing)
+                    Label(x + 39, y + 506, 470, 26, "GUARD AI: " + (game.AiMode == GuardAiMode.Squad ? "Squad" : "Chase only") + "  [F6]", 15, Cyan, true);
                 Label(x + 550, y + 213, 325, 25, "FIELD CONTROLS", 13, Cyan, true);
                 Label(x + 550, y + 255, 335, 190, "WASD / arrows       Move\nMouse                      Look\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Aim\nR / E                         Reload / Interact\nTab / Escape           Overview / Pause", 17, Color.white);
                 Label(x + 550, y + 460, 300, 22, "LOOK SENSITIVITY", 12, Muted, true);
