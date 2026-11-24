@@ -36,10 +36,25 @@ namespace TacticalGame
         public float hearingMultiplier = 1f;
         [Tooltip("Default awareness added by one noise")]
         public float noiseAwarenessBoost = 0.5f;
+        [Tooltip("Each solid obstacle between a noise and this guard multiplies the hearing radius by this")]
+        [Range(0f, 1f)] public float wallSoundFactor = 0.5f;
+        [Tooltip("Metres of position error per metre between this guard and a heard noise")]
+        public float soundErrorPerMetre = 0.12f;
+        [Tooltip("Upper limit for the position error of a heard noise")]
+        public float maxSoundError = 3f;
+
+        [Header("Damage")]
+        [Tooltip("Being shot fully alerts the guard to the shooter's position and informs the squad")]
+        public bool alertOnDamage = true;
 
         [Header("Debug / demo")]
+        [Tooltip("Cones are drawn in the Game view only while the perception debug view (F7) is on")]
         public bool drawCones = true;
+        [Tooltip("Debug view: awareness bar and role for every guard. Normal play: a ? or ! over guards you can actually see")]
         public bool showOverlay = true;
+
+        // F7 (GameSession) toggles this. Off by default so cones and bars do not reveal guards through walls.
+        public static bool DebugView;
 
         public float Awareness { get; private set; }
         public AwarenessState State { get; private set; } = AwarenessState.Unaware;
@@ -54,6 +69,7 @@ namespace TacticalGame
         static readonly List<GuardPerception> All = new List<GuardPerception>();
         static Material lineMaterial;
         readonly RaycastHit[] hits = new RaycastHit[16];
+        readonly RaycastHit[] soundHits = new RaycastHit[16];
         TargetDummy dummy;
         PlayerController player;
         CharacterController playerBody;
@@ -67,10 +83,16 @@ namespace TacticalGame
             for (int i = 0; i < All.Count; i++) All[i].HearNoise(position, radius, boost);
         }
 
-        void OnEnable() { All.Add(this); }
+        void OnEnable()
+        {
+            All.Add(this);
+            if (dummy == null) dummy = GetComponent<TargetDummy>();
+            if (dummy != null && dummy.health != null) dummy.health.Damaged += OnDamaged;
+        }
         void OnDisable()
         {
             All.Remove(this);
+            if (dummy != null && dummy.health != null) dummy.health.Damaged -= OnDamaged;
             CanSeeTarget = false;
             InPeripheralOnly = false;
         }
@@ -191,21 +213,96 @@ namespace TacticalGame
             return first == null || first.GetComponentInParent<PlayerController>() == player;
         }
 
+        // ---- DAMAGE: a hit gives the shooter's position immediately ----
+        void OnDamaged(float amount)
+        {
+            if (!alertOnDamage || !isActiveAndEnabled || !Active()) return;
+            LastKnownPosition = player.transform.position;
+            HasLastKnown = true;
+            lastStimulusAt = Time.time;
+            Awareness = 1f;
+            RefreshState();
+            var squad = dummy != null ? dummy.SquadCoordinator : null;
+            if (squad != null && squad.CoordinationEnabled)
+                squad.ReportSighting(new SightingReport(dummy.EnemyId, LastKnownPosition, Time.time));
+        }
+
         // ---- HEARING: event based, only gives a position to investigate ----
+        // Walls shorten how far a noise carries, and the heard position is only an estimate.
         public void HearNoise(Vector3 position, float radius, float boost = -1f)
         {
             var game = GameSession.Instance;
             if (game == null || game.State != RoundState.Playing) return;
             if (dummy != null && dummy.health != null && !dummy.health.IsAlive) return;
-            if (Vector3.Distance(transform.position, position) > radius * hearingMultiplier) return;
+            float distance = Vector3.Distance(transform.position, position);
+            float reach = radius * hearingMultiplier;
+            if (distance > reach) return;
+            int walls = CountSoundBlockers(position);
+            if (walls > 0 && distance > reach * Mathf.Pow(wallSoundFactor, walls)) return;
             if (!CanSeeTarget)
             {
-                LastKnownPosition = position;
+                LastKnownPosition = EstimateSoundSource(position, distance, walls);
                 HasLastKnown = true;
             }
             lastStimulusAt = Time.time;
             Awareness = Mathf.Clamp01(Awareness + (boost >= 0f ? boost : noiseAwarenessBoost));
             RefreshState();
+        }
+
+        // Largest distance between a heard noise and the position the guard believes it came from.
+        public float SoundErrorAt(float distance, int walls = 0) =>
+            Mathf.Min(maxSoundError, Mathf.Max(0f, distance) * soundErrorPerMetre * (1f + .5f * walls));
+
+        Vector3 EstimateSoundSource(Vector3 source, float distance, int walls)
+        {
+            float error = SoundErrorAt(distance, walls);
+            if (error <= 0f) return source;
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * error;
+            Vector3 guess = source + new Vector3(offset.x, 0f, offset.y);
+            // Keep the estimate somewhere a guard can walk to; otherwise fall back to the true source.
+            var pathfinder = AStarPathfinder.Instance;
+            if (pathfinder != null && pathfinder.isActiveAndEnabled && pathfinder.grid != null && pathfinder.grid.SizeX > 0)
+            {
+                Node node = pathfinder.grid.NodeFromWorldPoint(guess);
+                if (node == null || !node.walkable) return source;
+            }
+            return guess;
+        }
+
+        int CountSoundBlockers(Vector3 source)
+        {
+            Vector3 from = source + Vector3.up;
+            Vector3 dir = EyePosition - from;
+            float dist = dir.magnitude;
+            if (dist < .01f) return 0;
+            int n = Physics.RaycastNonAlloc(from, dir / dist, soundHits, dist, ~(1 << 2), QueryTriggerInteraction.Ignore);
+            int walls = 0;
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = soundHits[i].collider;
+                if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
+                if (c.GetComponentInParent<PlayerController>() != null || c.GetComponentInParent<TargetDummy>() != null) continue;
+                walls++;
+            }
+            return Mathf.Min(walls, 3);
+        }
+
+        // Player-facing icons are drawn only when the camera has a clear view of this guard.
+        bool VisibleFrom(Camera cam)
+        {
+            Vector3 from = cam.transform.position;
+            Vector3 dir = EyePosition - from;
+            float dist = dir.magnitude;
+            if (dist < .01f) return true;
+            int n = Physics.RaycastNonAlloc(from, dir / dist, hits, dist, ~(1 << 2), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = hits[i].collider;
+                if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
+                if (c.GetComponentInParent<PlayerController>() != null) continue;
+                return false;
+            }
+            return true;
         }
 
         // ---- AWARENESS + MEMORY ----
@@ -280,7 +377,7 @@ namespace TacticalGame
 
         void OnRenderObject()
         {
-            if (!drawCones || !Application.isPlaying || !Active()) return;
+            if (!drawCones || !DebugView || !Application.isPlaying || !Active()) return;
             if (lineMaterial == null)
             {
                 Shader shader = Shader.Find("Hidden/Internal-Colored");
@@ -318,6 +415,7 @@ namespace TacticalGame
         }
 
         GUIStyle roleLabelStyle;
+        GUIStyle iconStyle;
 
         void OnGUI()
         {
@@ -327,6 +425,7 @@ namespace TacticalGame
             if (cam == null) return;
             Vector3 sp = cam.WorldToScreenPoint(transform.position + Vector3.up * (eyeHeight + .9f));
             if (sp.z < 0f || sp.z > 60f) return;
+            if (!DebugView) { DrawStateIcon(cam, sp); return; }
             float x = sp.x - 40f, y = Screen.height - sp.y;
             var bar = new Rect(x, y, 80f, 8f);
             Color old = GUI.color;
@@ -337,6 +436,20 @@ namespace TacticalGame
             GUI.color = Color.white;
             GUI.Label(new Rect(x - 10f, y - 20f, 140f, 20f), State + (CanSeeTarget ? " (sees)" : ""));
             DrawRoleLabel(bar);
+            GUI.color = old;
+        }
+
+        void DrawStateIcon(Camera cam, Vector3 screenPoint)
+        {
+            if (State == AwarenessState.Unaware || Event.current.type != EventType.Repaint || !VisibleFrom(cam)) return;
+            if (iconStyle == null)
+                iconStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 26, fontStyle = FontStyle.Bold };
+            Color old = GUI.color;
+            var rect = new Rect(screenPoint.x - 20f, Screen.height - screenPoint.y - 30f, 40f, 36f);
+            GUI.color = new Color(0f, 0f, 0f, .75f);
+            GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), State == AwarenessState.Alerted ? "!" : "?", iconStyle);
+            GUI.color = StateColor();
+            GUI.Label(rect, State == AwarenessState.Alerted ? "!" : "?", iconStyle);
             GUI.color = old;
         }
 

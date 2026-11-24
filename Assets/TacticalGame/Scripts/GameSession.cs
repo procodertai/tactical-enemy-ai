@@ -71,6 +71,11 @@ namespace TacticalGame
 
         void Update()
         {
+            if (Input.GetKeyDown(KeyCode.F7))
+            {
+                GuardPerception.DebugView = !GuardPerception.DebugView;
+                Notify("Perception debug " + (GuardPerception.DebugView ? "ON: cones, awareness bars and last known positions" : "OFF"));
+            }
             if (State == RoundState.Briefing && useUtilitySquad && Input.GetKeyDown(KeyCode.F6))
                 SetAiMode(AiMode == GuardAiMode.Squad ? GuardAiMode.ChaseOnly : GuardAiMode.Squad);
             if (Input.GetKeyDown(KeyCode.Escape))

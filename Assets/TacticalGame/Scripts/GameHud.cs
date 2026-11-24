@@ -38,6 +38,7 @@ namespace TacticalGame
                 DrawPlayer(game);
                 DrawMarkers(game);
                 if (!game.Overview) DrawCrosshair(game);
+                if (!game.Overview) DrawDetection(game);
                 if (Time.unscaledTime < game.HurtUntil)
                 {
                     Box(0, 0, width, 8, new Color(1f, .22f, .1f, .8f));
@@ -70,7 +71,7 @@ namespace TacticalGame
             {
                 Box(width / 2 - 250, height - 145, 500, 75, Ink);
                 Label(width / 2 - 230, height - 134, 460, 25, "TACTICAL OVERVIEW", 20, Cyan, true, TextAnchor.MiddleCenter);
-                Label(width / 2 - 230, height - 103, 460, 22, "TAB to return  /  Clock continues  /  No AI routes yet", 14, Muted, false, TextAnchor.MiddleCenter);
+                Label(width / 2 - 230, height - 103, 460, 22, "TAB to return  /  Clock continues  /  F3 shows squad routes", 14, Muted, false, TextAnchor.MiddleCenter);
             }
         }
 
@@ -124,6 +125,35 @@ namespace TacticalGame
             Box(x - 1, y - gap - 7, 2, 7, color);
             Box(x - 1, y + gap, 2, 7, color);
             Box(x - 1, y - 1, 2, 2, color);
+        }
+
+        // Marks around the crosshair point toward guards that are suspicious (yellow, grows with
+        // awareness) or alerted (red). It gives direction only, never a guard's position through walls.
+        void DrawDetection(GameSession game)
+        {
+            if (Event.current.type != EventType.Repaint || game.player.viewCamera == null) return;
+            Transform view = game.player.viewCamera.transform;
+            Vector3 forward = view.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < .0001f) return;
+            Vector3 center = new Vector3(width / 2, height / 2, 0f);
+            Matrix4x4 baseMatrix = GUI.matrix;
+            foreach (var target in game.targets)
+            {
+                if (target == null || !target.IsAlive || !target.TryGetComponent<GuardPerception>(out var sense)) continue;
+                if (!sense.isActiveAndEnabled || sense.State == GuardPerception.AwarenessState.Unaware) continue;
+                Vector3 toGuard = target.transform.position - view.position;
+                toGuard.y = 0f;
+                if (toGuard.sqrMagnitude < .01f) continue;
+                float angle = Vector3.SignedAngle(forward, toGuard, Vector3.up);
+                bool alerted = sense.State == GuardPerception.AwarenessState.Alerted;
+                Color color = alerted ? new Color(1f, .25f, .15f, .95f) : new Color(1f, .8f, .2f, .35f + .55f * sense.Awareness);
+                float length = alerted ? 64f : 26f + 34f * sense.Awareness;
+                GUI.matrix = baseMatrix * Matrix4x4.TRS(center, Quaternion.Euler(0f, 0f, angle), Vector3.one);
+                Box(-length / 2, -118, length, alerted ? 6 : 4, color);
+                Box(-3, -128, 6, 9, color);
+            }
+            GUI.matrix = baseMatrix;
         }
 
         void DrawMarkers(GameSession game)
@@ -183,7 +213,7 @@ namespace TacticalGame
                 if (game.useUtilitySquad && game.State == RoundState.Briefing)
                     Label(x + 39, y + 506, 470, 26, "GUARD AI: " + (game.AiMode == GuardAiMode.Squad ? "Squad" : "Chase only") + "  [F6]", 15, Cyan, true);
                 Label(x + 550, y + 213, 325, 25, "FIELD CONTROLS", 13, Cyan, true);
-                Label(x + 550, y + 255, 335, 190, "WASD / arrows       Move\nMouse                      Look\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Aim\nR / E                         Reload / Interact\nTab / Escape           Overview / Pause", 17, Color.white);
+                Label(x + 550, y + 255, 335, 190, "WASD / arrows       Move\nMouse                      Look\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Aim\nR / E                         Reload / Interact\nTab / Escape           Overview / Pause\nF3 / F7                    Squad / AI debug", 17, Color.white);
                 Label(x + 550, y + 460, 300, 22, "LOOK SENSITIVITY", 12, Muted, true);
                 float sensitivity = GUI.HorizontalSlider(new Rect(x + 550, y + 494, 255, 20), game.player.sensitivity, .3f, 5f);
                 if (!Mathf.Approximately(sensitivity, game.player.sensitivity)) game.player.SetSensitivity(sensitivity);

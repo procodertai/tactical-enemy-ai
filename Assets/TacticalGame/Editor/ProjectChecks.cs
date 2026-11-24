@@ -340,7 +340,8 @@ namespace TacticalGame.Editor
                     case 12:
                         var hearing = game.targets[0].GetComponent<GuardPerception>();
                         ProjectChecks.Require(!hearing.CanSeeTarget && hearing.HasLastKnown && hearing.TimeSinceLastSeen > 1f &&
-                            (hearing.LastKnownPosition - player.transform.position).sqrMagnitude < .01f &&
+                            Vector3.Distance(hearing.LastKnownPosition, player.transform.position) <=
+                                hearing.SoundErrorAt(Vector3.Distance(hearing.transform.position, player.transform.position), 3) + .01f &&
                             hearing.State == GuardPerception.AwarenessState.Suspicious, "Gunshot provides a sound position through cover");
                         ProjectChecks.Require(game.squadCoordinator.TryGetSharedSighting(out var retainedSighting) &&
                             retainedSighting.Report.ObservedAt == sharedObservationTime, "Hearing cannot refresh a visual sighting");
