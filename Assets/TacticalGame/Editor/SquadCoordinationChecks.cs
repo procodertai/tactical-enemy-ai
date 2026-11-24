@@ -64,7 +64,7 @@ namespace TacticalGame.Editor
             for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
                 Check(!UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).isDirty, "Save open scenes first.");
             Results.Clear(); stage = map = assertions = 0;
-            started = EditorApplication.timeSinceStartup; resumeAt = started + .5;
+            started = EditorApplication.timeSinceStartup; resumeAt = .5;
             oldOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
             oldOptions = EditorSettings.enterPlayModeOptions;
             EditorSettings.enterPlayModeOptionsEnabled = true;
@@ -81,7 +81,7 @@ namespace TacticalGame.Editor
             try
             {
                 if (EditorApplication.timeSinceStartup - started > 150) throw new Exception("Coordination checks timed out.");
-                if (!EditorApplication.isPlaying || EditorApplication.isCompiling || EditorApplication.timeSinceStartup < resumeAt) return;
+                if (!EditorApplication.isPlaying || EditorApplication.isCompiling || Time.time < resumeAt) return;
                 var game = GameSession.Instance;
                 if (game == null) return;
                 switch (stage)
@@ -92,12 +92,15 @@ namespace TacticalGame.Editor
                         Check(live.MemberCount == 3 && live.DestinationCount == 7, "Installed roster.");
                         Check(live.Members.Select(m => live.GetRole(m.EnemyId)).Distinct().Count() == 3, "Three distinct initial roles.");
                         Check(live.GetRole("01") == SquadRole.Attacker && live.GetRole("02") == SquadRole.Flanker && live.GetRole("03") == SquadRole.Support, "Configured startup role order is deterministic.");
-                        Check(live.GetComponent<SquadCoordinationDebug>().RunManualExample(), "Manual example is wired.");
-                        Check(live.Claims.Count == 3 && live.Metrics.ReservationConflicts == 2, "Example resolves competing requests.");
-                        Check(live.TryGetSharedSighting(out var supplied), "Example supplies an explicit observation.");
+                        var debug = live.GetComponent<SquadCoordinationDebug>();
+                        Check(debug.RunManualExample(), "Manual example is wired.");
+                        var example = debug.DisplayedSquad;
+                        Check(example.Claims.Count == 3 && example.Metrics.ReservationConflicts == 2, "Example resolves competing requests.");
+                        Check(example.TryGetSharedSighting(out var supplied), "Example supplies an explicit observation.");
+                        Check(live.Claims.Count == 0 && !live.TryGetSharedSighting(out _), "The debug example cannot change real squad knowledge or claims.");
                         Vector3 originalPlayer = game.player.transform.position;
                         game.player.transform.position += new Vector3(3, 0, 2);
-                        Check(live.TryGetSharedSighting(out var unchanged) && unchanged.Report.ObservedPosition == supplied.Report.ObservedPosition, "Player movement must not update reported knowledge.");
+                        Check(example.TryGetSharedSighting(out var unchanged) && unchanged.Report.ObservedPosition == supplied.Report.ObservedPosition, "Player movement must not update reported knowledge.");
                         game.player.transform.position = originalPlayer;
                         live.ResetCoordinationContext();
                         NewRig();
@@ -265,7 +268,7 @@ namespace TacticalGame.Editor
             if (rigObject != null) UnityEngine.Object.DestroyImmediate(rigObject);
             if (tuning != null) UnityEngine.Object.DestroyImmediate(tuning);
         }
-        static void Wait(double seconds) { resumeAt = EditorApplication.timeSinceStartup + seconds; }
+        static void Wait(double seconds) { resumeAt = Time.time + seconds; }
         static void Check(bool condition, string message) { assertions++; if (!condition) throw new InvalidOperationException(message); }
         static void Finish(bool failed)
         {

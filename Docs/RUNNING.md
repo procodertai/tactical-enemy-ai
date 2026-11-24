@@ -1,19 +1,8 @@
 # Run the game, step by step
 
-## 1. Repair the local Unity editor first
+## 1. Install the project editor
 
-On this computer the installed **6000.6.0f1** editor fails before the project loads. Its log says:
-
-> Could not find Unity Package Manager local server application
-
-The missing file is `D:\Unity\Hub\Editor\6000.6.0f1\Editor\Data\Resources\PackageManager\Server\UnityPackageManager.exe`. The `Data/Tools` and `Data/PlaybackEngines` directories are also missing. These are editor installation files, outside this repository. Changing scripts or downloading an art pack will not restore them.
-
-1. Open **Unity Hub → Installs**.
-2. Find **6000.6.0f1** and use a repair option if your Hub offers one. Otherwise uninstall and reinstall that editor version through Hub. Keep this project folder; removing an editor does not require deleting your project.
-3. Include **Windows Build Support** if you want an executable. The editor is enough to use Play mode.
-4. Sign in or activate a Unity Personal license through Hub if Unity asks. Do that yourself; the project needs no account credentials.
-
-The main project is already set to your requested version. Do not open the main folder in Unity 2021 to work around this installation issue; that can downgrade project settings. A separate verification copy, if present, is under `Artifacts/CompatibilityUnity2021`.
+Install Unity **6000.6.0f1** through Unity Hub. Include **Windows Build Support** to make a standalone executable. If Unity reports a missing Package Manager or build tool, repair that editor installation through Hub, then reopen the project.
 
 ## 2. Add this project to Unity Hub
 
@@ -56,14 +45,14 @@ Your health starts at 100. The **red floor plate with yellow stripes in the sout
 
 ## 5. Run without the editor
 
-With a repaired editor and Windows build support installed:
+With Unity 6000.6.0f1 and Windows Build Support installed:
 
 1. Stop Play mode and save your scenes.
 2. Select **Tactical Game → Build Windows game**.
 3. Wait for the build to finish.
 4. Open `Builds/LastLight/LastLight.exe`.
 
-Keep the entire `Builds/LastLight` folder together, including the `LastLight_Data` directory and Unity DLLs. Copy the whole folder when sharing the playable game. The output is ignored by Git because it can be regenerated.
+Keep the entire `Builds/LastLight` folder together, including the `LastLight_Data` directory and Unity DLLs. Copy the whole folder when sharing the playable game. The build packages the branch you have checked out. The output is ignored by Git because it can be regenerated.
 
 You can also use **File → Build Profiles**, choose Windows and check that **Substation** and **RailDepot** are both in the scene list. Substation should be first. Unity documents the build process in its [Unity 6000.6 build script guide](https://docs.unity.com/en-us/engine/6000.6/manual/building-and-publishing/build-customize-build-pipeline/build-script-build).
 
@@ -84,8 +73,8 @@ If a compatibility executable exists at `Builds/Compatibility2021/LastLight.exe`
 | Medical kit cannot be collected | Health is already full. The kit stays available for later. |
 | Next map cannot load | Both scenes must be in Build Profiles / scene list; the supplied build tool sets them. |
 | Build target not supported | Add Windows Build Support to the same editor installation in Unity Hub. |
-| Guards stand in place | Expected for this temporary baseline. They turn and fire when a clear shot is available; tactical movement comes later. |
+| Guards stand in place | Guards hold until they know where to investigate or have a tactical position to move to. Press F3 to inspect live squad state. |
 | Guards are too difficult | Increase Warning Seconds or Shot Interval on their Basic Guard components; see `BASIC_GUARDS.md`. |
-| Red Console error | Read the first red error. For this initial installation, check missing editor tools before changing the game code. |
+| Red Console error | Read the first red error in the Console. Check Unity Hub for missing modules if the error names an editor tool. |
 
 Unity calls this input API [Legacy Input](https://docs.unity.com/en-us/engine/6000.6/manual/input/legacy). The self-contained starter uses it to avoid an additional package and input-action setup; you can learn the new Input System separately later.

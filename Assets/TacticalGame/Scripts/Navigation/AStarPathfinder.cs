@@ -9,9 +9,11 @@ namespace TacticalGame
         public GridManager grid;
 
         void Awake() { Instance = this; }
+        void OnDestroy() { if (Instance == this) Instance = null; }
 
         public List<Vector3> FindPath(Vector3 startPos, Vector3 targetPos)
         {
+            if (grid == null || !isActiveAndEnabled) return null;
             Node start = grid.NearestWalkable(grid.NodeFromWorldPoint(startPos));
             Node goal  = grid.NearestWalkable(grid.NodeFromWorldPoint(targetPos));
             if (start == null || goal == null) return null;

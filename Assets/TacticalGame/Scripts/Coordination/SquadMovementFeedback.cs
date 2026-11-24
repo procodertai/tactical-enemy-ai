@@ -15,7 +15,7 @@ namespace TacticalGame.Coordination
         void OnEnable()
         {
             member = GetComponent<TargetDummy>();
-            BindNavigation(navigationSource as IEnemyNavigation);
+            BindNavigation(navigationSource as IEnemyNavigation ?? GetComponent<PathMover>());
         }
 
         public void BindNavigation(IEnemyNavigation navigation)
