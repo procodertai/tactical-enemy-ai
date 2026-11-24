@@ -55,6 +55,7 @@ namespace TacticalGame
         {
             if (guard.TryGetComponent<AutoChase>(out var chase)) chase.enabled = false;
             if (!guard.TryGetComponent<PathMover>(out var mover)) mover = guard.gameObject.AddComponent<PathMover>();
+            if (!guard.TryGetComponent<GuardScout>(out _)) guard.gameObject.AddComponent<GuardScout>();
             if (!guard.TryGetComponent<GuardLocomotion>(out _)) guard.gameObject.AddComponent<GuardLocomotion>();
             if (!guard.TryGetComponent<SquadMovementFeedback>(out var feedback)) feedback = guard.gameObject.AddComponent<SquadMovementFeedback>();
             feedback.BindNavigation(mover);

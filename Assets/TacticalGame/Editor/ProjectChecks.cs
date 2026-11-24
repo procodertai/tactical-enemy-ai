@@ -526,6 +526,48 @@ namespace TacticalGame.Editor
                             "Guard can leave the completed retreat position after losing sight");
                         UnityEngine.Object.DestroyImmediate(guardTestWall);
                         Results.Add("PASS " + game.missionName + ": withdrawal completes, guard returns fire and can move again");
+                        game.Restart();
+                        stage++; waitUntil = Time.unscaledTime + .4f; break;
+                    case 27:
+                        var patrolling = game.targets[0];
+                        var patrol = patrolling.GetComponent<GuardScout>();
+                        ProjectChecks.Require(patrol != null, "Scene includes DepotNavigation patrol and search");
+                        foreach (var controller in ProjectChecks.FindAll<UtilityEnemyController>())
+                            controller.enabled = controller.gameObject == patrolling.gameObject;
+                        foreach (var sensor in ProjectChecks.FindAll<GuardPerception>()) sensor.enabled = false;
+                        patrolling.transform.position = new Vector3(-6.5f, patrolling.Position.y, -14.5f);
+                        patrol.waitMin = patrol.waitMax = 0f;
+                        patrol.patrolMin = patrol.patrolMax = 2f;
+                        Physics.SyncTransforms();
+                        guardTestPosition = patrolling.Position;
+                        game.Begin();
+                        tacticalTestDeadline = Time.time + 3f;
+                        stage++; break;
+                    case 28:
+                        var walker = game.targets[0];
+                        bool patrolMoved = Vector3.Distance(walker.Position, guardTestPosition) > .2f;
+                        if (!patrolMoved && Time.time < tacticalTestDeadline) break;
+                        ProjectChecks.Require(patrolMoved && walker.GetComponent<GuardScout>().IsUtilityScouting,
+                            "Guard moves on an idle patrol before any observation");
+                        var patrolSighting = new Vector3(-6.5f, 0, -8.5f);
+                        ProjectChecks.Require(game.squadCoordinator.ReportSighting(new SightingReport(walker.EnemyId, patrolSighting, Time.time)),
+                            "Coordinator accepts an observation while the guard patrols");
+                        tacticalTestDeadline = Time.time + 4f;
+                        stage++; break;
+                    case 29:
+                        var investigator = game.targets[0];
+                        var searching = investigator.GetComponent<GuardScout>();
+                        bool leftPatrol = !searching.IsUtilityScouting &&
+                            investigator.GetComponent<UtilityEnemyController>().CurrentAction == EnemyAction.Investigate;
+                        if (!leftPatrol && Time.time < tacticalTestDeadline) break;
+                        ProjectChecks.Require(leftPatrol, "A tactical order interrupts idle patrol");
+                        stage++; break;
+                    case 30:
+                        var searcher = game.targets[0].GetComponent<GuardScout>();
+                        bool startedSearch = searcher.IsUtilityScouting && searcher.state == ScoutState.Search;
+                        if (!startedSearch && Time.time < tacticalTestDeadline) break;
+                        ProjectChecks.Require(startedSearch, "Guard searches around its last reported position after investigating it");
+                        Results.Add("PASS " + game.missionName + ": patrol hands off to tactical investigation and then local search");
                         if (sceneIndex == 0)
                         {
                             sceneIndex = 1;

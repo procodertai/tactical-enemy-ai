@@ -95,7 +95,7 @@ namespace TacticalGame
                 }
                 decisionLeft = decisionInterval;
             }
-            movement?.Step(CurrentAction, knowledge);
+            movement?.Step(CurrentAction, knowledge, !chaseOnly);
             if (weapon.IsReloading) return;
             if (CurrentAction == EnemyAction.Reload) { weapon.TryReload(); return; }
             if (CurrentAction == EnemyAction.Fire)

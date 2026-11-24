@@ -9,6 +9,7 @@ namespace TacticalGame
     {
         readonly TargetDummy guard;
         readonly PathMover navigator;
+        readonly GuardScout scout;
         DestinationClaim? claim;
         Vector3 markerPosition;
         Vector3 investigationPoint;
@@ -47,10 +48,27 @@ namespace TacticalGame
         {
             this.guard = guard;
             this.navigator = navigator;
+            scout = guard.GetComponent<GuardScout>();
+            if (scout != null) scout.UseUtilityControl();
         }
 
-        public void Step(EnemyAction action, SightingReport? knowledge)
+        public void Step(EnemyAction action, SightingReport? knowledge, bool allowScouting)
         {
+            if (allowScouting && scout != null && scout.isActiveAndEnabled)
+            {
+                if (knowledge.HasValue) scout.RememberForUtility(knowledge.Value.ObservedPosition);
+                bool scoutDuringHold = action == EnemyAction.Hold && !knowledge.HasValue;
+                bool searchOnArrival = action == EnemyAction.Investigate && knowledge.HasValue &&
+                    NearInvestigationPoint(knowledge.Value.ObservedPosition);
+                if (scoutDuringHold || searchOnArrival)
+                {
+                    if (!scout.IsUtilityScouting) Stop();
+                    scout.TickUtilityScouting();
+                    return;
+                }
+            }
+            if (scout != null) scout.StopUtilityScouting();
+
             if (!knowledge.HasValue)
             {
                 Stop();
@@ -154,6 +172,7 @@ namespace TacticalGame
 
         public void Stop()
         {
+            if (scout != null) scout.StopUtilityScouting();
             navigator.Stop();
             ReleaseClaim();
         }

@@ -2,12 +2,13 @@
 
 ## Unity 6000.6.0f1
 
-Verified on 23 November 2026 with the integrated AI on Substation and Rail Depot.
+Verified on 24 November 2026 with DepotNavigation merged into the integrated AI on Substation and Rail Depot.
 
 - Map and gameplay checks passed on both maps, including extraction, timeout, restart and wall occlusion.
 - Guard checks passed for confirmed shared sightings, role-based decisions, separate cover and flank claims, and A* arrival feedback.
 - The movement regressions passed on both maps. Injured guards choose another action when retreat and cover markers are unavailable, a moving guard detours around a stationary teammate, and the template guard develops a procedural stride when it moves.
 - On both maps, a critically wounded guard completed its retreat, reacquired the player and fired, then moved again after cover blocked the shot.
+- On both maps, a guard patrolled with no contact, interrupted the patrol to investigate a squad sighting, then searched around the last reported position.
 - Coordination passed 152 assertions. Utility AI decision checks passed, including the separate Chase Only policy.
 - The one-command Windows build published both maps to `Builds/LastLight`. The packaged player initialized successfully in a headless startup check.
 
@@ -15,7 +16,7 @@ Run **Tactical Game → Run gameplay smoke checks**, **Coordination → Run full
 
 ## Scripted Squad versus Chase Only comparison
 
-Run **Tactical Game → AI Evaluation → Run chase-only comparison** from Edit mode. This runs eight rounds using the west-first and east-first routes on both maps in both modes. Each round starts from a fresh scene and uses the same weapon, perception settings, movement speed, and round cap. The scripted player walks, interacts with both terminals, and attempts extraction.
+Run **Tactical Game → AI Evaluation → Run chase-only comparison** from Edit mode. This runs eight rounds using the west-first and east-first routes on both maps in both modes. Each round starts from a fresh scene. Matched runs use the same seed, weapon, perception settings, investigation speed, and round cap. The scripted player walks, interacts with both terminals, and attempts extraction.
 
 | Mode | Extractions | Reservation conflicts | Route convergence episodes |
 | --- | ---: | ---: | ---: |

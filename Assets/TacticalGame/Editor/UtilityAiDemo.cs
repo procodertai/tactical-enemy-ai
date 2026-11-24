@@ -29,6 +29,7 @@ namespace TacticalGame.Editor
                 guard.enabled = false;
                 // Only guard 01 moves, so the audience watches one decision-maker.
                 if (guard != first && guard.TryGetComponent<AutoChase>(out var chase)) chase.enabled = false;
+                if (guard != first && guard.TryGetComponent<GuardScout>(out var scout)) scout.enabled = false;
             }
             var weapon = first.gameObject.AddComponent<EnemyWeapon>();
             weapon.warningLight = first.warningLight; weapon.tracer = first.tracer;

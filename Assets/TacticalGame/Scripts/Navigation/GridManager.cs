@@ -56,6 +56,20 @@ namespace TacticalGame
             return false;
         }
 
+        // A random walkable point between minRadius and maxRadius from center (used for patrol and search).
+        public bool TryRandomWalkable(Vector3 center, float minRadius, float maxRadius, out Vector3 point)
+        {
+            for (int i = 0; i < 40; i++)
+            {
+                Vector2 c = Random.insideUnitCircle.normalized * Random.Range(minRadius, maxRadius);
+                Vector3 p = center + new Vector3(c.x, 0f, c.y);
+                Node n = NodeFromWorldPoint(p);
+                if (n.walkable) { point = n.worldPos; return true; }
+            }
+            point = center;
+            return false;
+        }
+
         public Node NodeFromWorldPoint(Vector3 pos)
         {
             float px = Mathf.Clamp01((pos.x - transform.position.x + gridWorldSize.x / 2f) / gridWorldSize.x);

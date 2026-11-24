@@ -3136,8 +3136,8 @@ GameObject:
   - component: {fileID: 136705485}
   - component: {fileID: 136705484}
   - component: {fileID: 136705490}
-  - component: {fileID: 136705489}
   - component: {fileID: 136705491}
+  - component: {fileID: 136705492}
   m_Layer: 0
   m_Name: GUARD 02 - Basic fixed attack
   m_TagString: Untagged
@@ -3354,21 +3354,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maximum: 100
---- !u!114 &136705489
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 136705482}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777a37d99cd2ea7488a0d802dd285a17, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TacticalGame.AutoChase
-  attackDistance: 12
-  minDistance: 3
-  repathSeconds: 0.5
 --- !u!114 &136705490
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3394,9 +3379,38 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1a8512b452e294847929ecd827761fc7, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   navigationSource: {fileID: 0}
+--- !u!114 &136705492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 136705482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be77ae1d380e42b4b8e641096e47a205, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalGame.GuardScout
+  viewRange: 16
+  viewAngle: 110
+  spotSeconds: 0.35
+  loseSeconds: 0.6
+  patrolSpeed: 2.2
+  chaseSpeed: 4.2
+  attackDistance: 12
+  minDistance: 3
+  repathSeconds: 0.5
+  patrolMin: 10
+  patrolMax: 24
+  waitMin: 1
+  waitMax: 3
+  scanSpeed: 70
+  searchSeconds: 8
+  searchRadius: 6
+  state: 0
 --- !u!1 &144928202
 GameObject:
   m_ObjectHideFlags: 0
@@ -15543,7 +15557,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -17315,8 +17329,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 742b3a9abe81a9644813d7b02c8ab71d, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
+  coordinationEnabled: 1
   settings: {fileID: 11400000, guid: 2875fa29d8cf8e24ca10817a27b5a406, type: 2}
   configuredEnemies:
   - {fileID: 2112812411}
@@ -17330,7 +17345,6 @@ MonoBehaviour:
   - {fileID: 210293812}
   - {fileID: 1665151682}
   - {fileID: 1876228986}
-  coordinationEnabled: 1
 --- !u!114 &668324162
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17341,8 +17355,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ce2a2ec957ba8d3498496f6b01b88227, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   visible: 0
 --- !u!1 &671050505
 GameObject:
@@ -40193,8 +40207,8 @@ GameObject:
   - component: {fileID: 1705268510}
   - component: {fileID: 1705268509}
   - component: {fileID: 1705268515}
-  - component: {fileID: 1705268514}
   - component: {fileID: 1705268516}
+  - component: {fileID: 1705268517}
   m_Layer: 0
   m_Name: GUARD 03 - Basic fixed attack
   m_TagString: Untagged
@@ -40411,21 +40425,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maximum: 100
---- !u!114 &1705268514
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1705268507}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777a37d99cd2ea7488a0d802dd285a17, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TacticalGame.AutoChase
-  attackDistance: 12
-  minDistance: 3
-  repathSeconds: 0.5
 --- !u!114 &1705268515
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -40451,9 +40450,38 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1a8512b452e294847929ecd827761fc7, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   navigationSource: {fileID: 0}
+--- !u!114 &1705268517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1705268507}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be77ae1d380e42b4b8e641096e47a205, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalGame.GuardScout
+  viewRange: 16
+  viewAngle: 110
+  spotSeconds: 0.35
+  loseSeconds: 0.6
+  patrolSpeed: 2.2
+  chaseSpeed: 4.2
+  attackDistance: 12
+  minDistance: 3
+  repathSeconds: 0.5
+  patrolMin: 10
+  patrolMax: 24
+  waitMin: 1
+  waitMax: 3
+  scanSpeed: 70
+  searchSeconds: 8
+  searchRadius: 6
+  state: 0
 --- !u!1 &1706251997
 GameObject:
   m_ObjectHideFlags: 0
@@ -50595,8 +50623,8 @@ GameObject:
   - component: {fileID: 2112812409}
   - component: {fileID: 2112812408}
   - component: {fileID: 2112812414}
-  - component: {fileID: 2112812413}
   - component: {fileID: 2112812415}
+  - component: {fileID: 2112812416}
   m_Layer: 0
   m_Name: GUARD 01 - Basic fixed attack
   m_TagString: Untagged
@@ -50813,21 +50841,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maximum: 100
---- !u!114 &2112812413
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2112812406}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 777a37d99cd2ea7488a0d802dd285a17, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TacticalGame.AutoChase
-  attackDistance: 12
-  minDistance: 3
-  repathSeconds: 0.5
 --- !u!114 &2112812414
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -50853,9 +50866,38 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1a8512b452e294847929ecd827761fc7, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   navigationSource: {fileID: 0}
+--- !u!114 &2112812416
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2112812406}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be77ae1d380e42b4b8e641096e47a205, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalGame.GuardScout
+  viewRange: 16
+  viewAngle: 110
+  spotSeconds: 0.35
+  loseSeconds: 0.6
+  patrolSpeed: 2.2
+  chaseSpeed: 4.2
+  attackDistance: 12
+  minDistance: 3
+  repathSeconds: 0.5
+  patrolMin: 10
+  patrolMax: 24
+  waitMin: 1
+  waitMax: 3
+  scanSpeed: 70
+  searchSeconds: 8
+  searchRadius: 6
+  state: 0
 --- !u!1 &2114944985
 GameObject:
   m_ObjectHideFlags: 0

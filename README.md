@@ -4,7 +4,7 @@ A single-player 3D first-person game for the Tactical Enemy AI course. **The mai
 
 Two editable industrial maps: **Substation** and **Rail Depot**. Restore two terminals in either order and interact with the exit before the six-minute clock expires. Includes walking, sprinting, jumping, mouse look, aiming, rifle fire, reloading, health, ammo and medical supplies, shooting feedback, synthesized sound, mission menus, pause, restart, and an overhead camera.
 
-Each map has three guards with a viewing cone, hearing, and short-term memory. Guards share confirmed sightings and use Utility AI to decide when to fire, reload, investigate, flank, seek cover, or fall back. A* follows the chosen route and reports outcomes to the squad coordinator, which manages roles and exclusive destination claims. Defeating the guards is optional. Completing the terminals and extracting is the mission.
+Each map has three guards with a viewing cone, hearing, and short-term memory. In Squad mode, guards patrol until they have information to act on, then use Utility AI to fire, reload, investigate, flank, seek cover, or fall back. Guards can search around a last known position and share confirmed sightings. A* follows the chosen route and reports outcomes to the squad coordinator, which manages roles and exclusive destination claims. Defeating the guards is optional. Completing the terminals and extracting is the mission.
 
 The graphics now reuse **Unity Multiplayer FPS template 1.0.8**: rigged Armature characters and pose, assault rifles, modular environment meshes, PBR textures, and rifle/footstep sounds. Materials are adapted from the template's URP shaders to the starter's Built-in Render Pipeline. See [asset credits and adaptation details](Docs/TEMPLATE_ASSETS.md).
 

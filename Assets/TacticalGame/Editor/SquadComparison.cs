@@ -27,6 +27,7 @@ namespace TacticalGame.Editor
         static bool waiting, running, previousOptionsEnabled;
         static EnterPlayModeOptions previousOptions;
         static GuardAiMode previousMode;
+        static UnityEngine.Random.State previousRandomState;
 
         struct Waypoint
         {
@@ -56,6 +57,7 @@ namespace TacticalGame.Editor
             run = 0;
             started = EditorApplication.timeSinceStartup;
             previousCapture = Time.captureDeltaTime;
+            previousRandomState = UnityEngine.Random.state;
             previousFrameRate = Application.targetFrameRate;
             previousOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
             previousOptions = EditorSettings.enterPlayModeOptions;
@@ -102,6 +104,7 @@ namespace TacticalGame.Editor
             current = game;
             if (run == 0) previousMode = game.AiMode;
             bool east = (run / 2) % 2 == 1;
+            UnityEngine.Random.InitState(700 + run / 2);
             game.SetAiMode(run % 2 == 0 ? GuardAiMode.ChaseOnly : GuardAiMode.Squad);
             game.player.enabled = false;
             movers = game.targets.Select(target => target.GetComponent<PathMover>()).ToArray();
@@ -259,6 +262,7 @@ namespace TacticalGame.Editor
             EditorApplication.update -= Tick;
             running = false;
             Time.captureDeltaTime = previousCapture;
+            UnityEngine.Random.state = previousRandomState;
             Application.targetFrameRate = previousFrameRate;
             GameSession.SetNextAiMode(previousMode);
             EditorApplication.isPlaying = false;
