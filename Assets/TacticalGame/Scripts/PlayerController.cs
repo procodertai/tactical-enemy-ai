@@ -30,6 +30,7 @@ namespace TacticalGame
         float pitch;
         float verticalSpeed;
         float stepClock;
+        float kickPitch, kickRoll;
 
         void Awake()
         {
@@ -38,12 +39,32 @@ namespace TacticalGame
             sensitivity = PlayerPrefs.GetFloat("LookSensitivity", sensitivity);
         }
 
+        void OnEnable() { if (health != null) health.Damaged += OnDamaged; }
+        void OnDisable() { if (health != null) health.Damaged -= OnDamaged; }
+
+        void OnDamaged(float amount)
+        {
+            kickPitch = 2f;
+            kickRoll = kickRoll > 0f ? -3f : 3f;
+        }
+
         void Update()
         {
             var game = GameSession.Instance;
             Focus = null;
             IsMoving = false;
-            if (game == null || !game.CanControl) return;
+            if (game == null || !game.CanControl)
+            {
+                if (kickPitch != 0f || kickRoll != 0f)
+                {
+                    kickPitch = kickRoll = 0f;
+                    viewCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+                }
+                return;
+            }
+
+            if (game.allowDemoInvulnerability && Input.GetKeyDown(KeyCode.G))
+                health.invulnerable = !health.invulnerable;
 
             if (game.FirstPerson)
             {
@@ -51,8 +72,12 @@ namespace TacticalGame
                 float mouseY = Input.GetAxisRaw("Mouse Y") * sensitivity;
                 transform.Rotate(0f, mouseX, 0f);
                 pitch = Mathf.Clamp(pitch - mouseY, -82f, 82f);
-                viewCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+                viewCamera.transform.localRotation = Quaternion.Euler(pitch - kickPitch, 0f, kickRoll);
             }
+
+            float recovery = Mathf.Exp(-Time.deltaTime * 12f);
+            kickPitch *= recovery;
+            kickRoll *= recovery;
 
             float x = (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ? 1f : 0f)
                     - (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ? 1f : 0f);

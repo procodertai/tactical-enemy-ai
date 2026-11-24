@@ -59,10 +59,12 @@ namespace TacticalGame
             warningLeft -= dt;
             if (warningLeft > 0f || shotLeft > 0f) return false;
             Ammo--; ShotsFired++; shotLeft = shotInterval;
-            GameSession.Instance.player.health.TakeDamage(damage);
+            Vector3 origin = transform.position + Vector3.up * 1.45f;
+            var game = GameSession.Instance;
+            game.ReportPlayerHitFrom(origin);
+            game.player.health.TakeDamage(damage);
             if (tracer != null)
             {
-                Vector3 origin = transform.position + Vector3.up * 1.45f;
                 tracer.SetPosition(0, origin + (point - origin).normalized * .6f);
                 tracer.SetPosition(1, hit.point);
                 tracer.enabled = true;

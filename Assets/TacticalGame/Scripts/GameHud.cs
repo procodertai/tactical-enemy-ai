@@ -15,6 +15,7 @@ namespace TacticalGame
         GUIStyleState textNormal; // GUIStyle.normal returns a new wrapper on every access; keep one
         readonly GUIContent labelContent = new GUIContent(); // GUI.Label(string) builds new content each call
         GUIStyle button;
+        Texture2D damageVignette;
         float scale;
         float width;
         float height;
@@ -62,16 +63,62 @@ namespace TacticalGame
                     DrawCrosshair(game);
                     DrawDetection(game);
                 }
-                if (Time.unscaledTime < game.HurtUntil)
-                {
-                    Box(0, 0, width, 8, new Color(1f, .22f, .1f, .8f));
-                    Box(0, height - 8, width, 8, new Color(1f, .22f, .1f, .8f));
-                    Box(0, 0, 8, height, new Color(1f, .22f, .1f, .8f));
-                    Box(width - 8, 0, 8, height, new Color(1f, .22f, .1f, .8f));
-                }
+                DrawDamageVignette(game);
+                if (game.FirstPerson) DrawHitDirection(game);
                 DrawGuardOverlays(game);
             }
             else DrawMenu(game);
+        }
+
+        void OnDestroy()
+        {
+            if (damageVignette != null) Destroy(damageVignette);
+        }
+
+        void DrawDamageVignette(GameSession game)
+        {
+            float flash = Mathf.Clamp01((game.HurtUntil - Time.unscaledTime) / .5f) * Mathf.Min(.85f, .55f + .02f * game.LastDamage);
+            var health = game.player.health;
+            float danger = Mathf.Clamp01(1f - health.Current / (health.maximum * .35f));
+            float pulse = danger > 0f ? Mathf.Lerp(.15f, .35f, .5f + .5f * Mathf.Sin(Time.unscaledTime * Mathf.Lerp(3f, 7f, danger))) : 0f;
+            float opacity = Mathf.Max(flash, pulse);
+            if (opacity <= .01f) return;
+
+            if (damageVignette == null)
+            {
+                const int size = 64;
+                const float center = (size - 1) * .5f;
+                damageVignette = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                    {
+                        float radius = Vector2.Distance(new Vector2(x, y), new Vector2(center, center)) / center;
+                        float alpha = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.45f, 1.4f, radius));
+                        damageVignette.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                    }
+                damageVignette.Apply(false, true);
+            }
+            var previousColor = GUI.color;
+            GUI.color = new Color(.9f, .05f, .03f, opacity);
+            GUI.DrawTexture(new Rect(0f, 0f, width, height), damageVignette);
+            GUI.color = previousColor;
+        }
+
+        void DrawHitDirection(GameSession game)
+        {
+            float fade = 1f - (Time.unscaledTime - game.LastHitTime) / 1.2f;
+            if (fade <= 0f) return;
+            var view = game.player.viewCamera.transform;
+            Vector3 forward = Vector3.ProjectOnPlane(view.forward, Vector3.up);
+            Vector3 toSource = Vector3.ProjectOnPlane(game.LastHitFrom - view.position, Vector3.up);
+            if (forward.sqrMagnitude < .001f || toSource.sqrMagnitude < .001f) return;
+            float angle = Vector3.SignedAngle(forward, toSource, Vector3.up);
+            var previous = GUI.matrix;
+            GUI.matrix = previous * Matrix4x4.TRS(new Vector3(width / 2f, height / 2f), Quaternion.Euler(0f, 0f, angle), Vector3.one);
+            var color = new Color(1f, .15f, .1f, .9f * fade);
+            Box(-75f, -217f, 150f, 14f, color);
+            Box(-12f, -237f, 24f, 20f, color);
+            GUI.matrix = previous;
         }
 
         void DrawMission(GameSession game)
@@ -132,6 +179,7 @@ namespace TacticalGame
             var player = game.player;
             Box(30, height - 131, 263, 98, Ink);
             Label(49, height - 116, 110, 24, "HEALTH", 13, Muted, true);
+            if (player.health.invulnerable) Label(30, height - 156, 263, 22, "INVULNERABLE  /  G to turn off", 13, Green, true);
             int health = Mathf.CeilToInt(player.health.Current);
             if (health != healthValue) { healthValue = health; healthText = health.ToString("000"); }
             Label(186, height - 119, 85, 34, healthText, 27, player.health.Current <= 30 ? Orange : Color.white, true, TextAnchor.MiddleRight);

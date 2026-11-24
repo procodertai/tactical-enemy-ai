@@ -36,6 +36,7 @@ The original preview under `Builds/Compatibility2021` predates the integrated sq
 | F4 | Open or close the isolated squad example while the panel is open |
 | F5 | Toggle coordination while the panel is open |
 | F6 | Choose Squad or Chase Only on the briefing screen |
+| F7 | Toggle guard perception debug overlays in first person and on the map |
 | Hold T | Temporarily show objective markers |
 | Escape | Pause / resume and release the mouse |
 
@@ -60,7 +61,6 @@ The script uses Unity **6000.6.0f1** with Windows Build Support, builds the curr
 | `Assets/TacticalGame/Materials` | Shared built-in pipeline materials |
 | `Assets/TacticalGame/Editor` | Scene-authoring, validation and build tools |
 | `Docs` | Running instructions, learning steps and verification notes |
-| `project-3-3d-plan.md` | Your longer course plan, preserved |
 
 Uses Unity's **Built-in Render Pipeline** and built-in **Input Manager**. The required template visuals are included under `Assets/ThirdParty/UnityMultiplayerFPS`; the game needs no networking, DOTS, NavMesh, or ML-Agents packages. Our code uses the repository license; the included Unity art retains its separate Unity Companion License.
 

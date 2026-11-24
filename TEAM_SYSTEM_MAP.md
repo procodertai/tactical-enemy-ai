@@ -6,7 +6,7 @@
 
 The group is building **one integrated enemy AI system with four developers**. Each of the three enemies will use the work of all four teammates.
 
-These diagrams follow the [3D project plan](project-3-3d-plan.md). The current game integrates perception, Utility AI, A* navigation, and squad coordination on both maps. The diagrams show the design and historical implementation stages.
+The current game integrates perception, Utility AI, A* navigation, and squad coordination on both maps. The diagrams show the design and historical implementation stages.
 
 The diagrams use Mermaid. Open this document in a Markdown viewer that supports Mermaid to see rendered charts; the diagram source remains readable in a text editor.
 

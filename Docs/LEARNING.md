@@ -65,4 +65,4 @@ If you create a new map, add it to Build Profiles and update scene-selection cod
 
 Commit `Assets` **with their `.meta` files**, `Packages`, `ProjectSettings`, scripts and docs. Do not commit `Library`, `Temp`, `Logs`, `Artifacts` or build outputs. Coordinate ownership of map scenes so two people do not edit the same `.unity` file simultaneously.
 
-Finish the foundation walkthrough before beginning the first AI lesson. The existing `project-3-3d-plan.md` remains your broader roadmap; this starter covers its game foundation stage.
+Finish the foundation walkthrough before beginning the first AI lesson. The [system map](../TEAM_SYSTEM_MAP.md) shows how perception, Utility AI, navigation, and coordination fit together.

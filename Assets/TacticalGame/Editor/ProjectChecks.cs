@@ -316,6 +316,9 @@ namespace TacticalGame.Editor
                         stage++; waitUntil = Time.unscaledTime + 1.15f; break;
                     case 9:
                         ProjectChecks.Require(player.health.Current == 92, "Utility guard must actually damage player");
+                        ProjectChecks.Require(game.LastDamage == 8f &&
+                            Vector3.Distance(game.LastHitFrom, game.targets[0].Position + Vector3.up * 1.45f) < .05f,
+                            "Guard fire records the actual hit direction");
                         guardTestWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
                         guardTestWall.transform.position = game.targets[0].transform.position + new Vector3(0, 1.4f, -2);
                         guardTestWall.transform.localScale = new Vector3(3, 3, .3f);

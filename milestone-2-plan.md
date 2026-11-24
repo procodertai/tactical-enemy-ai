@@ -44,4 +44,4 @@ Only values available when the guard makes its choice go into the model. Actual 
 
 A successful milestone delivers a trained model used by the game, a repeatable dataset and comparison, and a readable Windows demo. Both maps keep their normal squad gameplay. Substation is the scope of the experiment and visual pass this week.
 
-[Original course plan](project-3-3d-plan.md#three-week-milestones) · [Current verification](Docs/VERIFICATION.md)
+[System map](TEAM_SYSTEM_MAP.md) · [Current verification](Docs/VERIFICATION.md)

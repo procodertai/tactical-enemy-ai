@@ -23,7 +23,9 @@ namespace TacticalGame.Editor
             Array.Sort(guards, (a, b) => string.CompareOrdinal(a.GetComponent<TargetDummy>().targetId, b.GetComponent<TargetDummy>().targetId));
             if (guards.Length == 0) throw new InvalidOperationException("Substation contains no guards.");
             var first = guards[0];
-            ProjectChecks.FindOne<GameSession>().useUtilitySquad = false;
+            var game = ProjectChecks.FindOne<GameSession>();
+            game.useUtilitySquad = false;
+            game.allowDemoInvulnerability = true;
             foreach (var guard in guards)
             {
                 guard.enabled = false;
@@ -39,7 +41,7 @@ namespace TacticalGame.Editor
             first.gameObject.AddComponent<UtilityEnemyController>().observations = provider;
             EditorSceneManager.SaveScene(scene);
             Selection.activeGameObject = first.gameObject;
-            Debug.Log("Utility AI demo created. Press Play, Begin Mission, and F2 to toggle scores.");
+            Debug.Log("Utility AI demo created. Press Play, then Begin Mission. F2 toggles scores and G toggles invulnerability.");
         }
 
         [MenuItem("Tactical Game/Utility AI/Check decision scenarios")]
@@ -73,7 +75,33 @@ namespace TacticalGame.Editor
             input.SettlingAfterDefense = false;
             input.RetreatReady = false;
             Expect(input, EnemyAction.Investigate);
+            CheckExperimentalSquadPlays();
             Debug.Log("PASS: Utility AI combat choices, health response, visibility, range, reserve, commitment, and interruption.");
+        }
+
+        static void CheckExperimentalSquadPlays()
+        {
+            var members = new[]
+            {
+                new MemberSnapshot { Id = "01", Alive = true, Health = 1f, Ammo = 6 },
+                new MemberSnapshot { Id = "02", Alive = true, Health = 1f, HasFlankPoint = true, FlankPoint = Vector3.right * 5f }
+            };
+            var snapshot = new SquadSnapshot { Members = members };
+            SquadPlay Pick() => SquadTactics.Select(SquadTactics.Evaluate(snapshot), SquadPlay.Freestyle, SquadTactics.MinHold);
+
+            Require(Pick() == SquadPlay.Freestyle, "Unknown target falls back to freestyle");
+            snapshot.KnowsTarget = true;
+            Require(Pick() == SquadPlay.BoundingAdvance, "Known but unseen target allows a bounding advance");
+            members[0].SeesPlayer = true;
+            var scores = SquadTactics.Evaluate(snapshot);
+            Require(Pick() == SquadPlay.PinAndFlank &&
+                SquadTactics.Select(scores, SquadPlay.Freestyle, 1f) == SquadPlay.Freestyle,
+                "Visible targets allow pin and flank after the current play's hold");
+            var orders = SquadTactics.Assign(SquadPlay.PinAndFlank, snapshot, 0);
+            Require(orders[0].Role == TacticRole.Pinner && orders[1].Role == TacticRole.Flanker && orders[1].Point == members[1].FlankPoint,
+                "Pin and flank assigns the pinner and flank destination");
+            members[0].Health = .2f;
+            Require(Pick() == SquadPlay.CoveredRetreat, "An injured member triggers a covered retreat");
         }
 
         static void Expect(UtilityInputs input, EnemyAction expected)

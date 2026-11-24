@@ -8,6 +8,9 @@
 /Artifacts/
 /.vs/
 /.idea/
+/.vscode/
+/.remember/
+.DS_Store
 *.csproj
 *.sln
 *.slnx
@@ -19,3 +22,10 @@
 sysinfo.txt
 crash.dmp
 CLAUDE.md
+
+# Generated demo scenes and local editor settings
+/Assets/TacticalGame/Scenes/UtilityAiDemo.unity
+/Assets/TacticalGame/Scenes/UtilityAiDemo.unity.meta
+/Assets/TacticalGame/Scenes/SquadTacticsDemo.unity
+/Assets/TacticalGame/Scenes/SquadTacticsDemo.unity.meta
+/ProjectSettings/SceneTemplateSettings.json
