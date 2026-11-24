@@ -59,7 +59,10 @@ namespace TacticalGame
             // Recheck the actual first collision every shot. Walls and other guards stop bullets.
             if (Physics.Raycast(origin, direction.normalized, out var shot, range, ~0, QueryTriggerInteraction.Ignore) &&
                 shot.collider.GetComponentInParent<PlayerController>() == game.player)
+            {
+                game.ReportPlayerHitFrom(origin);
                 game.player.health.TakeDamage(damage);
+            }
             tracer.SetPosition(0, origin + direction.normalized * .6f);
             tracer.SetPosition(1, origin + direction.normalized * direction.magnitude);
             flashUntil = Time.time + .07f;

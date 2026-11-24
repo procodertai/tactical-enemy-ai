@@ -63,6 +63,7 @@ namespace TacticalGame
             warningLeft -= dt;
             if (warningLeft > 0f || shotLeft > 0f) return false;
             Ammo--; ShotsFired++; shotLeft = shotInterval;
+            GameSession.Instance.ReportPlayerHitFrom(origin);
             GameSession.Instance.player.health.TakeDamage(damage);
             if (tracer != null) { tracer.SetPosition(0, origin + direction.normalized * .6f); tracer.SetPosition(1, hit.point); tracer.enabled = true; }
             flashLeft = .07f;

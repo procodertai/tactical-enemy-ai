@@ -23,6 +23,8 @@ namespace TacticalGame
         float pitch;
         float verticalSpeed;
         float stepClock;
+        float kickPitch;
+        float kickRoll;
 
         void Awake()
         {
@@ -30,18 +32,30 @@ namespace TacticalGame
             sensitivity = PlayerPrefs.GetFloat("LookSensitivity", sensitivity);
         }
 
+        void OnEnable() { if (health != null) health.Damaged += OnDamaged; }
+        void OnDisable() { if (health != null) health.Damaged -= OnDamaged; }
+        void OnDamaged(float amount) { kickPitch = 2f; kickRoll = Random.Range(-3f, 3f); }
+
         void Update()
         {
             var game = GameSession.Instance;
             Focus = null;
             IsMoving = false;
-            if (game == null || !game.CanControl) return;
+            if (Input.GetKeyDown(KeyCode.G)) health.invulnerable = !health.invulnerable; // demo: watch the AI without dying
+            if (game == null || !game.CanControl)
+            {
+                if (kickPitch != 0f || kickRoll != 0f) { kickPitch = kickRoll = 0f; viewCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f); } // no tilt while paused
+                return;
+            }
+            float decay = 1f - Mathf.Exp(-Time.deltaTime * 12f); // ~0.25 s to settle
+            kickPitch = Mathf.Lerp(kickPitch, 0f, decay);
+            kickRoll = Mathf.Lerp(kickRoll, 0f, decay);
 
             float mouseX = Input.GetAxisRaw("Mouse X") * sensitivity;
             float mouseY = Input.GetAxisRaw("Mouse Y") * sensitivity;
             transform.Rotate(0f, mouseX, 0f);
             pitch = Mathf.Clamp(pitch - mouseY, -82f, 82f);
-            viewCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+            viewCamera.transform.localRotation = Quaternion.Euler(pitch - kickPitch, 0f, kickRoll);
 
             float x = (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ? 1f : 0f)
                     - (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ? 1f : 0f);

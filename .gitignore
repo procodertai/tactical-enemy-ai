@@ -8,6 +8,9 @@
 /Artifacts/
 /.vs/
 /.idea/
+/.vscode/
+/.remember/
+.DS_Store
 *.csproj
 *.sln
 *.slnx
@@ -18,4 +21,31 @@
 *.mdb
 sysinfo.txt
 crash.dmp
-CLAUDE.md
+/CLAUDE.md
+/AGENTS.md
+
+# Local coursework and planning notes
+/TEAM_SYSTEM_MAP.md
+/project-3-2d-plan.md
+/project-3-3d-plan.md
+/projectDescription.doc
+
+# Local Utility AI demo scene and demo-only scripts
+/Assets/TacticalGame/Editor/SquadTacticsDemo.cs
+/Assets/TacticalGame/Editor/SquadTacticsDemo.cs.meta
+/Assets/TacticalGame/Scenes/UtilityAiDemo.unity
+/Assets/TacticalGame/Scenes/UtilityAiDemo.unity.meta
+/Assets/TacticalGame/Scenes/SquadTacticsDemo.unity
+/Assets/TacticalGame/Scenes/SquadTacticsDemo.unity.meta
+/Assets/TacticalGame/Scripts/UtilityAI/SquadTactician.cs
+/Assets/TacticalGame/Scripts/UtilityAI/SquadTactician.cs.meta
+/Assets/TacticalGame/Scripts/UtilityAI/SquadDemo/ScriptedIntruder.cs
+/Assets/TacticalGame/Scripts/UtilityAI/SquadDemo/ScriptedIntruder.cs.meta
+/Assets/TacticalGame/Scripts/UtilityAI/SquadDemo/SquadDemoDirector.cs
+/Assets/TacticalGame/Scripts/UtilityAI/SquadDemo/SquadDemoDirector.cs.meta
+/Assets/TacticalGame/Scripts/UtilityAI/SquadDemo/SquadTacticsOverlay.cs
+/Assets/TacticalGame/Scripts/UtilityAI/SquadDemo/SquadTacticsOverlay.cs.meta
+
+# Unity editor settings generated locally
+/ProjectSettings/PackageManagerSettings.asset
+/ProjectSettings/SceneTemplateSettings.json

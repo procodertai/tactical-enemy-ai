@@ -31,6 +31,9 @@ namespace TacticalGame
         public float MessageUntil { get; private set; }
         public float HitUntil { get; private set; }
         public float HurtUntil { get; private set; }
+        public float LastDamage { get; private set; }
+        public Vector3 LastHitFrom { get; private set; }
+        public float LastHitTime { get; private set; } = -99f;
         public int ShotsFired { get; private set; }
         public int ShotsHit { get; private set; }
         public int Completed
@@ -135,7 +138,8 @@ namespace TacticalGame
         }
 
         void PlayerDefeated() => Finish(false, "Health depleted. Break enemy fire with solid cover and use medical supplies.");
-        void OnPlayerDamaged(float amount) => HurtUntil = Time.unscaledTime + .28f;
+        void OnPlayerDamaged(float amount) { LastDamage = amount; HurtUntil = Time.unscaledTime + .5f; }
+        public void ReportPlayerHitFrom(Vector3 source) { LastHitFrom = source; LastHitTime = Time.unscaledTime; }
 
         public void Finish(bool won, string reason)
         {

@@ -52,6 +52,8 @@ Defeating the orange armored guards is optional, but they can shoot you. Their w
 
 Your health starts at 100. The **red floor plate with yellow stripes in the southeast corner** deals damage while you stand on it. It is an optional electrical hazard. The white medical kit nearby restores up to 50 health. A full-health player leaves the kit available.
 
+Taking damage shows a red screen vignette (stronger and pulsing below 35% health), a red bar pointing toward the shooter for enemy fire, and a brief camera kick.
+
 **Tab** shows the level from above and freezes player movement, while the mission clock continues. Press **Tab** again to return. **Escape** pauses the clock and frees the pointer; the pause menu has sensitivity, restart, map selection, and quit controls. Switching away from the game also pauses it.
 
 ## 5. Run without the editor

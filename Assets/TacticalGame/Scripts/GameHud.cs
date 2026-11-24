@@ -24,7 +24,6 @@ namespace TacticalGame
             scale = Mathf.Max(.35f, scale);
             width = Screen.width / scale;
             height = Screen.height / scale;
-            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
             if (text == null)
             {
                 text = new GUIStyle(GUI.skin.label) { fontSize = 18, richText = false, wordWrap = true };
@@ -38,15 +37,60 @@ namespace TacticalGame
                 DrawPlayer(game);
                 DrawMarkers(game);
                 if (!game.Overview) DrawCrosshair(game);
-                if (Time.unscaledTime < game.HurtUntil)
-                {
-                    Box(0, 0, width, 8, new Color(1f, .22f, .1f, .8f));
-                    Box(0, height - 8, width, 8, new Color(1f, .22f, .1f, .8f));
-                    Box(0, 0, 8, height, new Color(1f, .22f, .1f, .8f));
-                    Box(width - 8, 0, 8, height, new Color(1f, .22f, .1f, .8f));
-                }
+                DrawVignette(game);
+                DrawHitDirection(game);
             }
             else DrawMenu(game);
+        }
+
+        static Texture2D vignette;
+
+        void DrawVignette(GameSession game)
+        {
+            if (vignette == null)
+            {
+                vignette = new Texture2D(128, 128, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < 128; y++)
+                    for (int x = 0; x < 128; x++)
+                    {
+                        float d = Mathf.Clamp01(new Vector2(x - 63.5f, y - 63.5f).magnitude / 90f); // 90 ~ corner distance
+                        vignette.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.35f, 1f, d))));
+                    }
+                vignette.Apply();
+            }
+            float flash = Mathf.Clamp01((game.HurtUntil - Time.unscaledTime) / .5f) * Mathf.Min(.85f, .55f + .02f * game.LastDamage);
+            float low = 0f;
+            var health = game.player.health;
+            float frac = health.Current / health.maximum;
+            if (frac < .35f)
+                low = Mathf.Lerp(.15f, .35f, .5f + .5f * Mathf.Sin(Time.unscaledTime * Mathf.Lerp(3f, 7f, 1f - frac / .35f)))
+                    * Mathf.Lerp(1f, 1.5f, 1f - frac / .35f);
+            float alpha = Mathf.Max(flash, low);
+            if (alpha <= .01f) return;
+            var old = GUI.color;
+            GUI.color = new Color(.9f, .05f, .03f, alpha);
+            GUI.DrawTexture(Px(0, 0, width, height), vignette);
+            GUI.color = old;
+        }
+
+        void DrawHitDirection(GameSession game)
+        {
+            float fade = 1f - (Time.unscaledTime - game.LastHitTime) / 1.2f;
+            if (fade <= 0f) return;
+            var cam = game.player.viewCamera.transform;
+            Vector3 forward = cam.forward; forward.y = 0f;
+            Vector3 to = game.LastHitFrom - cam.position; to.y = 0f;
+            if (forward.sqrMagnitude < .001f || to.sqrMagnitude < .001f) return;
+            float angle = Vector3.SignedAngle(forward, to, Vector3.up); // 0 = ahead, +90 = right
+            var centre = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            var old = GUI.color;
+            var matrix = GUI.matrix;
+            GUI.color = new Color(1f, .15f, .1f, .9f * fade);
+            GUIUtility.RotateAroundPivot(angle, centre); // pivot is in screen pixels
+            GUI.DrawTexture(new Rect(centre.x - 75f * scale, centre.y - 217f * scale, 150f * scale, 14f * scale), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(centre.x - 14f * scale, centre.y - 245f * scale, 28f * scale, 28f * scale), Texture2D.whiteTexture); // pointer nub
+            GUI.matrix = matrix;
+            GUI.color = old;
         }
 
         void DrawMission(GameSession game)
@@ -79,6 +123,7 @@ namespace TacticalGame
             var player = game.player;
             Box(30, height - 131, 263, 98, Ink);
             Label(49, height - 116, 110, 24, "HEALTH", 13, Muted, true);
+            if (player.health.invulnerable) Label(30, height - 156, 263, 22, "INVINCIBLE  /  G to turn off", 13, Green, true);
             Label(186, height - 119, 85, 34, Mathf.CeilToInt(player.health.Current).ToString("000"), 27, player.health.Current <= 30 ? Orange : Color.white, true, TextAnchor.MiddleRight);
             Box(49, height - 67, 222, 7, new Color(.18f, .24f, .27f));
             Box(49, height - 67, 222 * player.health.Current / player.health.maximum, 7, Green);
@@ -183,7 +228,7 @@ namespace TacticalGame
                 Label(x + 550, y + 213, 325, 25, "FIELD CONTROLS", 13, Cyan, true);
                 Label(x + 550, y + 255, 335, 190, "WASD / arrows       Move\nMouse                      Look\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Aim\nR / E                         Reload / Interact\nTab / Escape           Overview / Pause", 17, Color.white);
                 Label(x + 550, y + 460, 300, 22, "LOOK SENSITIVITY", 12, Muted, true);
-                float sensitivity = GUI.HorizontalSlider(new Rect(x + 550, y + 494, 255, 20), game.player.sensitivity, .3f, 5f);
+                float sensitivity = GUI.HorizontalSlider(Px(x + 550, y + 494, 255, 20), game.player.sensitivity, .3f, 5f);
                 if (!Mathf.Approximately(sensitivity, game.player.sensitivity)) game.player.SetSensitivity(sensitivity);
             }
             else
@@ -208,29 +253,33 @@ namespace TacticalGame
             Label(x + 39, y + 621, 850, 24, "Visual assets: Unity Multiplayer FPS template / Unity Technologies     ·     LAST LIGHT", 11, Muted);
         }
 
+        // Virtual 1440x900 canvas -> screen pixels, so glyphs rasterise at final size.
+        Rect Px(float x, float y, float w, float h) { return new Rect(x * scale, y * scale, w * scale, h * scale); }
+
         bool Button(float x, float y, float w, float h, string label, Color color)
         {
             Color old = GUI.backgroundColor;
             GUI.backgroundColor = color;
-            bool clicked = GUI.Button(new Rect(x, y, w, h), label, button);
+            button.fontSize = Mathf.Max(1, Mathf.RoundToInt(18 * scale));
+            bool clicked = GUI.Button(Px(x, y, w, h), label, button);
             GUI.backgroundColor = old;
             return clicked;
         }
 
         void Label(float x, float y, float w, float h, string value, int size, Color color, bool bold = false, TextAnchor align = TextAnchor.UpperLeft)
         {
-            text.fontSize = size;
+            text.fontSize = Mathf.Max(1, Mathf.RoundToInt(size * scale));
             text.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
             text.normal.textColor = color;
             text.alignment = align;
-            GUI.Label(new Rect(x, y, w, h), value, text);
+            GUI.Label(Px(x, y, w, h), value, text);
         }
 
-        static void Box(float x, float y, float w, float h, Color color)
+        void Box(float x, float y, float w, float h, Color color)
         {
             var old = GUI.color;
             GUI.color = color;
-            GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
+            GUI.DrawTexture(Px(x, y, w, h), Texture2D.whiteTexture);
             GUI.color = old;
         }
     }
