@@ -41,7 +41,9 @@ Defeating the orange armored guards is optional, but they can shoot you. Their w
 
 Your health starts at 100. The **red floor plate with yellow stripes in the southeast corner** deals damage while you stand on it. It is an optional electrical hazard. The white medical kit nearby restores up to 50 health. A full-health player leaves the kit available.
 
-**Tab** shows the level from above and freezes player movement, while the mission clock continues. Press **Tab** again to return. **Escape** pauses the clock and frees the pointer; the pause menu has sensitivity, restart, map selection, and quit controls. Switching away from the game also pauses it.
+**V** switches between first person and **God View**, an angled 3D camera that keeps the arena in frame as your player and the guards move. **Tab** opens the overhead map, where the cyan marker shows your player. Press **Tab** again to return to the view you were using.
+
+In either external view, **WASD** or the arrow keys move in screen directions. Move the mouse to aim, use **left click** to fire, and point at a nearby terminal, supply crate, or exit before pressing **E**. You can still sprint, jump, and reload. Walls block shots and interactions, guards stay active, and the mission clock continues. **Escape** pauses the game and opens the pause menu. Switching away from the game also pauses it.
 
 ## 5. Run without the editor
 
@@ -64,7 +66,7 @@ Keep the entire `Builds/LastLight` folder together, including the `LastLight_Dat
 
 On the briefing screen, press **F6** to choose Squad or Chase Only before starting the mission.
 
-To watch live coordination, start Substation in Squad mode and press **F3**. Let a guard spot you long enough to report a sighting. The panel shows who reported it, each guard's decision, and any marker claim. Press **Tab** to follow blue A* routes and green claim lines from overhead. The overhead view suspends enemy fire. **F4** opens a separate example with sample reservations.
+To watch live coordination, start in Squad mode and press **V**. Guard labels show their current action and assigned role. Blue lines show current A* routes, green lines connect guards to claimed positions, and amber shows where the squad last saw you and which guards are using that report. Rail Depot's canopies cut away so you can follow the guards on the platforms. Let a guard spot you long enough to share a sighting. Press **F3** for the detailed squad panel or **F2** for Guard 01's decision scores. **F4** opens a separate example in the squad panel.
 
 You can also use **File → Build Profiles**, choose Windows and check that **Substation** and **RailDepot** are both in the scene list. Substation should be first. Unity documents the build process in its [Unity 6000.6 build script guide](https://docs.unity.com/en-us/engine/6000.6/manual/building-and-publishing/build-customize-build-pipeline/build-script-build).
 
@@ -81,7 +83,7 @@ If a compatibility executable exists at `Builds/Compatibility2021/LastLight.exe`
 | Pink objects | Use the Built-in Render Pipeline. In Graphics settings leave the scriptable render pipeline asset empty, and check the Quality override too. Do not convert these Standard materials to URP just to run the starter. |
 | Blank scene | Double-click `Assets/TacticalGame/Scenes/Substation.unity`. |
 | No interaction prompt | Get closer and point at the actual terminal, gate, or supply box. Walls block interactions. |
-| Gun does not fire | Begin/resume the round, return from overhead view, and reload with R if the magazine is empty. |
+| Gun does not fire | Begin or resume the round, then reload with R if the magazine is empty. |
 | Medical kit cannot be collected | Health is already full. The kit stays available for later. |
 | Next map cannot load | Both scenes must be in Build Profiles / scene list; the supplied build tool sets them. |
 | Build target not supported | Add Windows Build Support to the same editor installation in Unity Hub. |

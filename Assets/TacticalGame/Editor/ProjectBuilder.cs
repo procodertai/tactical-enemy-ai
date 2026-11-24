@@ -16,6 +16,7 @@ namespace TacticalGame.Editor
         const string Root = "Assets/TacticalGame";
         public const string SubstationPath = Root + "/Scenes/Substation.unity";
         public const string DepotPath = Root + "/Scenes/RailDepot.unity";
+        public const string PlayerAvatarPath = Root + "/Prefabs/PlayerAvatar.prefab";
         static readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         static Transform environment;
         static Material concrete, steel, dark, white, yellow, cyan, green, orange, red, glass, ground, worldText;
@@ -35,6 +36,7 @@ namespace TacticalGame.Editor
             AssetDatabase.Refresh();
             TemplateArt.PrepareMaterials();
             MakeMaterials();
+            BuildPlayerAvatar();
             BuildScene(false);
             BuildScene(true);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(SubstationPath, true), new EditorBuildSettingsScene(DepotPath, true) };
@@ -131,7 +133,8 @@ namespace TacticalGame.Editor
             environment = new GameObject("ENVIRONMENT - Editable modular geometry").transform;
             game.environmentReflections = Lighting(depot);
             Shell(depot);
-            if (depot) Depot(); else Substation();
+            if (depot) game.godViewCeilings = Depot();
+            else game.overviewCeiling = Substation();
             DressWithTemplate(depot);
 
             var gameplay = new GameObject("GAMEPLAY - Objectives, targets and supplies").transform;
@@ -237,7 +240,7 @@ namespace TacticalGame.Editor
             }
         }
 
-        static void Substation()
+        static Renderer Substation()
         {
             // A central transformer island leaves broad routes on both sides.
             Box("Transformer plinth", new Vector3(0, .2f, 1), new Vector3(10, .4f, 12), concrete);
@@ -258,7 +261,7 @@ namespace TacticalGame.Editor
             Box("Control room east stub", new Vector3(-10, 1.7f, 12.8f), new Vector3(.4f, 3.4f, 5), steel);
             Box("Control room south stub", new Vector3(-16.5f, 1.7f, 4.7f), new Vector3(3, 3.4f, .4f), steel);
             Box("Control room lintel", new Vector3(-12.5f, 3.1f, 4.7f), new Vector3(5, .6f, .4f), yellow);
-            Box("Control room roof edge", new Vector3(-14, 3.6f, 10), new Vector3(8.5f, .25f, 11.5f), dark);
+            var roof = Box("Control room roof edge", new Vector3(-14, 3.6f, 10), new Vector3(8.5f, .25f, 11.5f), dark);
             Text("Control room entry sign", "CONTROL / A", new Vector3(-12.5f, 3.1f, 4.45f), .16f, dark.color);
             Box("Control desk", new Vector3(-16, .7f, 13), new Vector3(2.8f, 1.4f, 1), dark);
             Box("Control desk screen", new Vector3(-16, 1.65f, 13.05f), new Vector3(1.4f, .6f, .15f), cyan);
@@ -273,9 +276,10 @@ namespace TacticalGame.Editor
             Text("Yard ground stencil", "04 / TRANSFORMER YARD", new Vector3(0, .035f, -9.5f), .19f, white.color, 0, true);
             Crate(new Vector3(-14, 0, -6), new Vector3(3, 2, 3));
             Crate(new Vector3(-14, 2, -6), new Vector3(2.7f, 1.5f, 2.7f));
+            return roof.GetComponent<Renderer>();
         }
 
-        static void Depot()
+        static Renderer[] Depot()
         {
             // A stationary carriage divides west/east lanes; both ends connect.
             Box("Train undercarriage", new Vector3(0, .65f, .5f), new Vector3(5.2f, .7f, 19), dark);
@@ -300,8 +304,8 @@ namespace TacticalGame.Editor
                 Box("West canopy column", new Vector3(-8, 2.1f, z), new Vector3(.45f, 4.2f, .45f), concrete);
                 Box("East canopy column", new Vector3(8, 2.1f, z), new Vector3(.45f, 4.2f, .45f), concrete);
             }
-            Box("West canopy", new Vector3(-8.5f, 4.5f, 1), new Vector3(8.5f, .25f, 24), dark);
-            Box("East canopy", new Vector3(8.5f, 4.5f, 1), new Vector3(8.5f, .25f, 24), dark);
+            var westCanopy = Box("West canopy", new Vector3(-8.5f, 4.5f, 1), new Vector3(8.5f, .25f, 24), dark);
+            var eastCanopy = Box("East canopy", new Vector3(8.5f, 4.5f, 1), new Vector3(8.5f, .25f, 24), dark);
             // Ticket hall cover; open south/east entries.
             Box("Ticket hall back", new Vector3(-15, 1.6f, 15.3f), new Vector3(7, 3.2f, .4f), steel);
             Box("Ticket hall side", new Vector3(-18.3f, 1.6f, 10.5f), new Vector3(.4f, 3.2f, 9.5f), steel);
@@ -318,6 +322,7 @@ namespace TacticalGame.Editor
             Crate(new Vector3(-12, 0, -5), new Vector3(2.5f, 1.5f, 2));
             Barricade(new Vector3(11.8f, 0, 7), 90);
             Text("Platform ground stencil", "PLATFORM 02 / EVACUATION", new Vector3(8, .035f, -12.5f), .18f, white.color, 0, true);
+            return new[] { westCanopy.GetComponent<Renderer>(), eastCanopy.GetComponent<Renderer>() };
         }
 
         static void DressWithTemplate(bool depot)
@@ -357,6 +362,20 @@ namespace TacticalGame.Editor
             }
         }
 
+        public static void BuildPlayerAvatar()
+        {
+            var avatar = new GameObject("PlayerAvatar");
+            try
+            {
+                TemplateArt.Character(avatar.transform, "blue");
+                TemplateArt.Fit("Guns/AssaultRifle/Pfb_assaultRifle.prefab", avatar.transform,
+                    new Vector3(.22f, 1.23f, .35f), new Vector3(.78f, .24f, .08f), -90);
+                avatar.AddComponent<GuardLocomotion>();
+                PrefabUtility.SaveAsPrefabAsset(avatar, PlayerAvatarPath);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(avatar); }
+        }
+
         static PlayerController Player(Vector3 position, Transform parent)
         {
             var go = new GameObject("PLAYER - Select to tune movement and rifle");
@@ -374,6 +393,7 @@ namespace TacticalGame.Editor
             var rifle = go.AddComponent<Rifle>();
             player.health = hp;
             player.rifle = rifle;
+            player.godViewAvatarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerAvatarPath);
             var cameraObject = new GameObject("First Person Camera");
             cameraObject.transform.SetParent(go.transform, false);
             cameraObject.transform.localPosition = new Vector3(0, 1.65f, 0);

@@ -42,7 +42,7 @@ namespace TacticalGame.Editor
             return null;
         }
 
-        public static GameObject Character(Transform parent)
+        public static GameObject Character(Transform parent, string color = "orange")
         {
             var asset = AssetDatabase.LoadAssetAtPath<GameObject>(Root + "Characters/Armature/Model/Armature_arms.fbx");
             var model = Object.Instantiate(asset, parent);
@@ -51,7 +51,8 @@ namespace TacticalGame.Editor
             foreach (var renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
             {
                 if (renderer.name.Contains("ArmsOnly")) { renderer.gameObject.SetActive(false); continue; }
-                renderer.sharedMaterials = new[] { Material("Materials/M_Armature_Body_orange.mat"), Material("Materials/M_Armature_Arms_orange.mat"), Material("Materials/M_Armature_Legs_orange.mat") };
+                renderer.sharedMaterials = new[] { Material($"Materials/M_Armature_Body_{color}.mat"),
+                    Material($"Materials/M_Armature_Arms_{color}.mat"), Material($"Materials/M_Armature_Legs_{color}.mat") };
             }
             string controllerPath = "Assets/TacticalGame/Materials/GuardIdle.controller";
             var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);

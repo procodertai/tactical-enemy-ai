@@ -2,7 +2,7 @@
 
 A single-player 3D first-person game for the Tactical Enemy AI course. **The main Unity project targets 6000.6.0f1.** Open this repository folder as the project; do not create another Unity project inside it.
 
-Two editable industrial maps: **Substation** and **Rail Depot**. Restore two terminals in either order and interact with the exit before the six-minute clock expires. Includes walking, sprinting, jumping, mouse look, aiming, rifle fire, reloading, health, ammo and medical supplies, shooting feedback, synthesized sound, mission menus, pause, restart, and an overhead camera.
+Two editable industrial maps: **Substation** and **Rail Depot**. Restore two terminals in either order and interact with the exit before the six-minute clock expires. Play in first person, watch live guard coordination in the arena-wide 3D God View, or open the playable overhead map.
 
 Each map has three guards with a viewing cone, hearing, and short-term memory. In Squad mode, guards patrol until they have information to act on, then use Utility AI to fire, reload, investigate, flank, seek cover, or fall back. Guards can search around a last known position and share confirmed sightings. A* follows the chosen route and reports outcomes to the squad coordinator, which manages roles and exclusive destination claims. Defeating the guards is optional. Completing the terminals and extracting is the mission.
 
@@ -23,13 +23,14 @@ The original preview under `Builds/Compatibility2021` predates the integrated sq
 | Input | Action |
 | --- | --- |
 | WASD / arrow keys | Move |
-| Mouse | Look |
+| Mouse | Look in first person or aim the cursor in either external view |
 | Left Shift | Sprint |
 | Space | Jump |
-| Left / right mouse | Fire / hold to aim |
+| Left / right mouse | Fire / hold to aim in first person |
 | R | Reload |
-| E | Interact with the object you are looking at |
-| Tab | Toggle overhead camera; the clock continues |
+| E | Interact with the nearby object you are pointing at |
+| Tab | Open or close the playable overhead map |
+| V | Switch between first person and arena-wide 3D God View |
 | F2 | Show Guard 01's Utility AI scores |
 | F3 | Toggle the live squad panel |
 | F4 | Open or close the isolated squad example while the panel is open |

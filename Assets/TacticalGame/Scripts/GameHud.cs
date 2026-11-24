@@ -1,4 +1,5 @@
 using UnityEngine;
+using TacticalGame.Coordination;
 
 namespace TacticalGame
 {
@@ -37,7 +38,8 @@ namespace TacticalGame
                 DrawMission(game);
                 DrawPlayer(game);
                 DrawMarkers(game);
-                if (!game.Overview) DrawCrosshair(game);
+                if (!game.FirstPerson) DrawPlayerMarker(game);
+                if (game.FirstPerson) DrawCrosshair(game);
                 if (Time.unscaledTime < game.HurtUntil)
                 {
                     Box(0, 0, width, 8, new Color(1f, .22f, .1f, .8f));
@@ -66,11 +68,25 @@ namespace TacticalGame
             int time = Mathf.CeilToInt(game.Remaining);
             Label(width - 217, 60, 173, 44, (time / 60).ToString("00") + ":" + (time % 60).ToString("00"), 34, time < 60 ? Orange : Color.white, true);
 
-            if (game.Overview)
+            if (game.GodView)
+            {
+                float left = width / 2 - 210;
+                Box(left, 28, 420, 90, Ink);
+                Label(left, 34, 420, 26, "GOD VIEW", 20, Cyan, true, TextAnchor.MiddleCenter);
+                var squad = game.squadCoordinator;
+                string status = squad == null || !squad.CoordinationEnabled ? "Squad coordination off" : "Squad active · No shared sighting";
+                if (squad != null && squad.TryGetSharedSighting(out var sighting))
+                    status = $"Guard {sighting.Report.ReporterId} shared a sighting · {sighting.AgeSeconds:0.0}s ago";
+                Label(left, 62, 420, 23, status, 14, Color.white, false, TextAnchor.MiddleCenter);
+                Label(left + 27, 89, 102, 22, "A* paths", 13, SquadCoordinationDebug.RouteColor, false, TextAnchor.MiddleCenter);
+                Label(left + 132, 89, 148, 22, "Claimed positions", 13, SquadCoordinationDebug.ClaimColor, false, TextAnchor.MiddleCenter);
+                Label(left + 275, 89, 125, 22, "Shared sighting", 13, SquadCoordinationDebug.SightingColor, false, TextAnchor.MiddleCenter);
+            }
+            else if (game.Overview)
             {
                 Box(width / 2 - 250, height - 145, 500, 75, Ink);
-                Label(width / 2 - 230, height - 134, 460, 25, "TACTICAL OVERVIEW", 20, Cyan, true, TextAnchor.MiddleCenter);
-                Label(width / 2 - 230, height - 103, 460, 22, "TAB to return  /  Clock continues  /  No AI routes yet", 14, Muted, false, TextAnchor.MiddleCenter);
+                Label(width / 2 - 230, height - 134, 460, 25, "MAP", 20, Cyan, true, TextAnchor.MiddleCenter);
+                Label(width / 2 - 230, height - 103, 460, 22, "Mouse to aim   /   Point and press E to interact", 14, Muted, false, TextAnchor.MiddleCenter);
             }
         }
 
@@ -94,16 +110,22 @@ namespace TacticalGame
                 Box(width / 2 - 75, height / 2 + 101, 150 * player.rifle.ReloadProgress, 4, Orange);
             }
 
-            Label(30, height - 29, width - 60, 22, "WASD move    SHIFT sprint    SPACE jump    LMB fire    RMB aim    R reload    E interact    Hold T markers    TAB overview    ESC pause", 12, Muted, false, TextAnchor.MiddleCenter);
-            if (!game.Overview && player.Focus != null)
+            string controls = game.FirstPerson
+                ? "WASD move    SHIFT sprint    SPACE jump    LMB fire    RMB aim    R reload    E interact    T markers    TAB map    V God View    ESC pause"
+                : "WASD move    SHIFT sprint    SPACE jump    LMB fire    R reload    E interact    TAB map    V perspective    ESC pause";
+            if (game.GodView) controls += "    F3 squad panel";
+            Label(30, height - 29, width - 60, 22, controls, 12, Muted, false, TextAnchor.MiddleCenter);
+            if (player.Focus != null)
             {
-                Box(width / 2 - 250, height / 2 + 128, 500, 43, Ink);
-                Label(width / 2 - 240, height / 2 + 136, 480, 29, player.Focus.Prompt, 17, Cyan, true, TextAnchor.MiddleCenter);
+                float promptTop = game.GodView ? height - 87 : height / 2 + 128;
+                Box(width / 2 - 250, promptTop, 500, 43, Ink);
+                Label(width / 2 - 240, promptTop + 8, 480, 29, player.Focus.Prompt, 17, Cyan, true, TextAnchor.MiddleCenter);
             }
             if (Time.unscaledTime < game.MessageUntil)
             {
-                Box(width / 2 - 350, height - 207, 700, 49, Ink);
-                Label(width / 2 - 332, height - 198, 664, 34, game.Message, 16, Color.white, false, TextAnchor.MiddleCenter);
+                float messageTop = game.GodView ? 126 : height - 207;
+                Box(width / 2 - 350, messageTop, 700, 49, Ink);
+                Label(width / 2 - 332, messageTop + 9, 664, 34, game.Message, 16, Color.white, false, TextAnchor.MiddleCenter);
             }
             Label(width - 236, 126, 206, 27, "GUARDS " + game.TargetsDown + " / " + game.targets.Length, 13, Muted, false, TextAnchor.MiddleRight);
         }
@@ -129,7 +151,7 @@ namespace TacticalGame
         void DrawMarkers(GameSession game)
         {
             if (!game.Overview && !Input.GetKey(KeyCode.T)) return;
-            var camera = game.Overview ? game.overviewCamera : game.player.viewCamera;
+            var camera = game.ActiveCamera;
             foreach (var objective in game.objectives)
             {
                 Vector3 point = camera.WorldToScreenPoint(objective.transform.position + Vector3.up * 2.9f);
@@ -152,14 +174,26 @@ namespace TacticalGame
                     Label(x - 58, y - 11, 116, 26, "EXIT / OPEN", 14, Green, true, TextAnchor.MiddleCenter);
                 }
             }
-            if (game.Overview)
+        }
+
+        void DrawPlayerMarker(GameSession game)
+        {
+            var camera = game.ActiveCamera;
+            var player = game.player.transform;
+            var point = camera.WorldToScreenPoint(player.position);
+            float x = point.x / scale;
+            float y = (Screen.height - point.y) / scale;
+            if (game.GodView)
             {
-                var point = camera.WorldToScreenPoint(game.player.transform.position);
-                float x = point.x / scale;
-                float y = (Screen.height - point.y) / scale;
-                Box(x - 5, y - 5, 10, 10, Cyan);
-                Label(x + 10, y - 10, 60, 25, "YOU", 12, Cyan, true);
+                Box(x - 21, y + 5, 42, 19, Ink);
+                Label(x - 21, y + 4, 42, 20, "YOU", 12, Cyan, true, TextAnchor.MiddleCenter);
+                return;
             }
+            var facing = camera.WorldToScreenPoint(player.position + player.forward * .75f);
+            Box(facing.x / scale - 2, (Screen.height - facing.y) / scale - 2, 4, 4, Color.white);
+            Box(x - 7, y - 7, 14, 14, Ink);
+            Box(x - 5, y - 5, 10, 10, Cyan);
+            Label(x + 10, y - 10, 60, 25, "YOU", 12, Cyan, true);
         }
 
         void DrawMenu(GameSession game)
@@ -183,7 +217,7 @@ namespace TacticalGame
                 if (game.useUtilitySquad && game.State == RoundState.Briefing)
                     Label(x + 39, y + 506, 470, 26, "GUARD AI: " + (game.AiMode == GuardAiMode.Squad ? "Squad" : "Chase only") + "  [F6]", 15, Cyan, true);
                 Label(x + 550, y + 213, 325, 25, "FIELD CONTROLS", 13, Cyan, true);
-                Label(x + 550, y + 255, 335, 190, "WASD / arrows       Move\nMouse                      Look\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Aim\nR / E                         Reload / Interact\nTab / Escape           Overview / Pause", 17, Color.white);
+                Label(x + 550, y + 255, 335, 190, "WASD / arrows       Move\nMouse                      Look / aim\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Zoom in first person\nR / E                         Reload / Interact\nTab / V                    Map / 3D God View\nEscape                     Pause", 17, Color.white);
                 Label(x + 550, y + 460, 300, 22, "LOOK SENSITIVITY", 12, Muted, true);
                 float sensitivity = GUI.HorizontalSlider(new Rect(x + 550, y + 494, 255, 20), game.player.sensitivity, .3f, 5f);
                 if (!Mathf.Approximately(sensitivity, game.player.sensitivity)) game.player.SetSensitivity(sensitivity);

@@ -14,6 +14,7 @@ namespace TacticalGame
         public bool showOverlay = true;
         public EnemyAction CurrentAction { get; private set; }
         public bool HasDecision => initialized;
+        public string SharedSightingSource { get; private set; }
         public string LastSwitch { get; private set; } = "Waiting for mission";
         public ActionScore[] Scores { get; private set; }
         public int DecisionCount { get; private set; }
@@ -25,6 +26,7 @@ namespace TacticalGame
         UtilityInputs inputs;
         float decisionLeft, held;
         bool initialized;
+        bool showGodViewScores;
 
         void Awake()
         {
@@ -44,8 +46,13 @@ namespace TacticalGame
 
         void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F2) && (tacticalNavigation == null || target.EnemyId == "01")) showOverlay = !showOverlay;
             var game = GameSession.Instance;
+            if (Input.GetKeyDown(KeyCode.F2) && (tacticalNavigation == null || target.EnemyId == "01"))
+            {
+                if (game != null && game.GodView) showGodViewScores = !showGodViewScores;
+                else showOverlay = !showOverlay;
+            }
+            SharedSightingSource = null;
             if (game == null || game.State != RoundState.Playing || !target.IsAlive)
             {
                 if (game == null || game.State != RoundState.Paused || !target.IsAlive) movement?.Stop();
@@ -60,7 +67,11 @@ namespace TacticalGame
             var knowledge = observation.KnownTarget;
             bool chaseOnly = game.useUtilitySquad && game.AiMode == GuardAiMode.ChaseOnly;
             if (!chaseOnly && !observation.Visible && squad != null && squad.TryGetSharedSighting(out var shared) &&
-                (!knowledge.HasValue || shared.Report.ObservedAt > knowledge.Value.ObservedAt)) knowledge = shared.Report;
+                (!knowledge.HasValue || shared.Report.ObservedAt > knowledge.Value.ObservedAt))
+            {
+                knowledge = shared.Report;
+                SharedSightingSource = shared.Report.ReporterId;
+            }
             movement?.RefreshClaim();
             held += dt; decisionLeft -= dt;
             inputs = new UtilityInputs { HealthFraction = target.health.Current / target.health.maximum,
@@ -119,15 +130,17 @@ namespace TacticalGame
 
         void OnDisable()
         {
+            SharedSightingSource = null;
             movement?.Stop();
             if (weapon != null) { weapon.StopAiming(); weapon.HideEffects(); }
         }
 
         void OnGUI()
         {
-            if (!showOverlay || weapon == null) return;
+            var game = GameSession.Instance;
+            if (weapon == null || !(game != null && game.GodView ? showGodViewScores : showOverlay)) return;
             GUILayout.BeginArea(new Rect(Screen.width - 470, 130, 450, 330), GUI.skin.box); // right side: HUD and squad panel use the left
-            bool chaseOnly = GameSession.Instance != null && GameSession.Instance.AiMode == GuardAiMode.ChaseOnly;
+            bool chaseOnly = game != null && game.AiMode == GuardAiMode.ChaseOnly;
             GUILayout.Label((chaseOnly ? "CHASE ONLY" : "UTILITY AI") + " — Guard " + target.targetId + " [F2]");
             var perception = (observations as PerceptionObservation)?.Perception;
             GUILayout.Label(perception != null ? $"Perception (R4): {perception.State}{(perception.CanSeeTarget ? ", sees player" : "")}" : "Perception: not connected");

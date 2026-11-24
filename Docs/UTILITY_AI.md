@@ -20,7 +20,7 @@ Run **Tactical Game → Utility AI → Check decision scenarios**. Expect a PASS
 
 `EnemyWeapon` owns six loaded rounds, 24 reserve rounds, reload timing, warning timing, shots and feedback. Reloading transfers missing ammunition after 1.7 seconds. Each shot consumes one round and checks the first physical collision again. Defaults preserve 8 damage, 19-metre range, a 1.2-second warning, and 1.6 seconds between shots.
 
-`UtilityEnemyController` supplies state, scores every 0.2 seconds, selects an action and asks the weapon to execute it. Reload is committed until complete. Pause and overhead inspection freeze its timers. Death and round end stop combat. Restart reloads the scene and initializes state again.
+`UtilityEnemyController` supplies state, scores every 0.2 seconds, selects an action and asks the weapon to execute it. Reload is committed until complete. Pause freezes its timers. Combat continues in God View and on the map. Death and round end stop combat. Restart reloads the scene and initializes state again.
 
 ## 3. Create and play the demo
 
@@ -36,7 +36,7 @@ Run **Tactical Game → Utility AI → Check decision scenarios**. Expect a PASS
 - Confirm the warning precedes the first shot and health drops by 8 per shot.
 - Put solid cover between player and guard; confirm no damage through it.
 - Check that reload fills only missing rounds and reduces reserve by the same amount. With Starting Reserve set to zero before Play, an empty enemy must Hold.
-- Pause mid-warning and mid-reload. Resume and confirm the remaining delay is preserved. Repeat using Tab for overhead inspection.
+- Pause mid-warning and mid-reload. Resume and confirm the remaining delay is preserved. Open the map with Tab or switch to God View with V and confirm that warnings and reloads continue.
 - Defeat the enemy; confirm shots stop. Restart and check full health, six rounds and 24 reserve with default settings.
 - Let the round end; confirm combat stops. Check the ordinary Substation and Rail Depot scenes still use their existing baseline.
 

@@ -3821,6 +3821,7 @@ MonoBehaviour:
   viewCamera: {fileID: 642012894}
   health: {fileID: 156053334}
   rifle: {fileID: 156053332}
+  godViewAvatarPrefab: {fileID: 6306903688321224840, guid: 191140a8f17739d43b368c71eee9d244, type: 3}
   interactionDistance: 3.1
 --- !u!114 &156053334
 MonoBehaviour:
@@ -45084,6 +45085,9 @@ MonoBehaviour:
   squadCoordinator: {fileID: 1833219038}
   exitGate: {fileID: 1576556550}
   overviewCamera: {fileID: 596354659}
+  godViewCeilings:
+  - {fileID: 2110085922}
+  - {fileID: 1874117642}
   environmentReflections: {fileID: 246605976}
   nextScene: Substation
 --- !u!4 &1833219037

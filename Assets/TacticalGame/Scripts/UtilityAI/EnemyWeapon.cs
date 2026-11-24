@@ -27,7 +27,7 @@ namespace TacticalGame
             StopAiming();
         }
 
-        // Driven by the controller so pause/overview freeze every combat timer.
+        // Driven by the controller so pause freezes combat timers.
         public void Tick(float dt)
         {
             if (!Active) { HideEffects(); return; }

@@ -26,6 +26,7 @@ namespace TacticalGame
         float flashLeft;
         float kick;
         float bobTime;
+        int tracerLayer;
         Vector3 rest;
         PlayerController player;
 
@@ -37,6 +38,7 @@ namespace TacticalGame
             rest = weaponModel.localPosition;
             muzzleFlash.enabled = false;
             tracer.enabled = false;
+            tracerLayer = tracer.gameObject.layer;
         }
 
         void Update()
@@ -60,7 +62,7 @@ namespace TacticalGame
                     GameAudio.Instance.PlayCue(430f, .07f);
                 }
             }
-            IsAiming = game.CanControl && Input.GetMouseButton(1) && !IsReloading;
+            IsAiming = game.CanControl && game.FirstPerson && Input.GetMouseButton(1) && !IsReloading;
             if (game.CanControl)
             {
                 if (Input.GetKeyDown(KeyCode.R)) TryReload();
@@ -79,13 +81,14 @@ namespace TacticalGame
 
         public bool TryFire()
         {
-            if (GameSession.Instance == null || !GameSession.Instance.CanControl || IsReloading || Time.time < nextShot) return false;
+            var game = GameSession.Instance;
+            if (game == null || !game.CanControl || IsReloading || Time.time < nextShot) return false;
             if (Ammo <= 0)
             {
                 nextShot = Time.time + .22f;
                 GameAudio.Instance.PlayCue(110f, .035f);
                 if (Reserve > 0) TryReload();
-                else GameSession.Instance.Notify("Out of ammo. Find an orange supply crate.");
+                else game.Notify("Out of ammo. Find an orange supply crate.");
                 return false;
             }
             nextShot = Time.time + 1f / roundsPerSecond;
@@ -95,8 +98,9 @@ namespace TacticalGame
             GameAudio.Instance.Gunshot();
             bool hitTarget = false;
             var origin = viewCamera.transform.position;
-            var end = origin + viewCamera.transform.forward * range;
-            if (Physics.Raycast(origin, viewCamera.transform.forward, out var hit, range, ~(1 << 2), QueryTriggerInteraction.Ignore))
+            Vector3 direction = player.AimDirection;
+            var end = origin + direction * range;
+            if (Physics.Raycast(origin, direction, out var hit, range, ~(1 << 2), QueryTriggerInteraction.Ignore))
             {
                 end = hit.point;
                 var targetHealth = hit.collider.GetComponentInParent<Health>();
@@ -106,9 +110,10 @@ namespace TacticalGame
                     hitTarget = true;
                 }
             }
-            tracer.SetPosition(0, muzzleFlash.transform.position);
+            tracer.gameObject.layer = game.FirstPerson ? tracerLayer : 0;
+            tracer.SetPosition(0, game.FirstPerson ? muzzleFlash.transform.position : origin);
             tracer.SetPosition(1, end);
-            GameSession.Instance.RegisterShot(hitTarget);
+            game.RegisterShot(hitTarget);
             return true;
         }
 

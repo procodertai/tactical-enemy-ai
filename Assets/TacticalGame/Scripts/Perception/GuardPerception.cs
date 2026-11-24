@@ -281,6 +281,7 @@ namespace TacticalGame
         void OnRenderObject()
         {
             if (!drawCones || !Application.isPlaying || !Active()) return;
+            if (Camera.current == GameSession.Instance.GodViewCamera) return;
             if (lineMaterial == null)
             {
                 Shader shader = Shader.Find("Hidden/Internal-Colored");
@@ -323,7 +324,8 @@ namespace TacticalGame
         {
             if (!showOverlay || !Application.isPlaying || !Active()) return;
             var game = GameSession.Instance;
-            Camera cam = game.Overview && game.overviewCamera != null ? game.overviewCamera : player.viewCamera;
+            if (game.GodView) return;
+            Camera cam = game.ActiveCamera;
             if (cam == null) return;
             Vector3 sp = cam.WorldToScreenPoint(transform.position + Vector3.up * (eyeHeight + .9f));
             if (sp.z < 0f || sp.z > 60f) return;

@@ -12,8 +12,14 @@ namespace TacticalGame.Coordination
         SquadCoordinator example;
         GUIStyle textStyle;
         GUIStyle markerStyle;
+        readonly List<Rect> guardLabels = new List<Rect>();
+        internal static readonly Color RouteColor = new Color(.35f, .8f, 1f, .95f);
+        internal static readonly Color ClaimColor = new Color(.3f, 1f, .65f, .9f);
+        internal static readonly Color SightingColor = new Color(1f, .75f, .3f, .95f);
         public bool Visible { get => visible; set => visible = value; }
         public SquadCoordinator DisplayedSquad => example != null ? example : squad;
+        public bool ShowsLiveGodView => GameSession.Instance is GameSession game && game.GodView && game.CanControl &&
+            squad != null && game.squadCoordinator == squad;
 
         void Awake() => squad = GetComponent<SquadCoordinator>();
         void Update()
@@ -91,16 +97,27 @@ namespace TacticalGame.Coordination
 
         void OnGUI()
         {
+            if (Event.current.type != EventType.Repaint) return;
             var displayed = DisplayedSquad;
-            if (!visible || displayed == null) return;
+            bool showGodView = ShowsLiveGodView;
+            if (!showGodView && (!visible || displayed == null)) return;
             float scale = Mathf.Max(.25f, Mathf.Min(Screen.width / 1440f, Screen.height / 900f));
             Matrix4x4 previous = GUI.matrix;
             int previousDepth = GUI.depth;
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1));
             GUI.depth = -10;
             if (textStyle == null) textStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, wordWrap = true };
+            if (markerStyle == null)
+                markerStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleCenter };
             var oldColor = GUI.color;
-            DrawOverview(displayed, scale);
+            if (showGodView) DrawGodView(GameSession.Instance, scale);
+            else DrawOverview(displayed, scale);
+            if (visible) DrawDebugPanel(displayed, scale);
+            GUI.color = oldColor; GUI.matrix = previous; GUI.depth = previousDepth;
+        }
+
+        void DrawDebugPanel(SquadCoordinator displayed, float scale)
+        {
             float panelHeight = Mathf.Min(Screen.height / scale - 235, 640);
             GUI.color = new Color(.02f, .04f, .06f, .96f);
             GUI.DrawTexture(new Rect(30, 205, 550, panelHeight), Texture2D.whiteTexture);
@@ -124,7 +141,6 @@ namespace TacticalGame.Coordination
                 var item = displayed.DebugEvents[i];
                 Row(ref y, item.Time.ToString("0.0") + "  " + item.Message, 13, 34);
             }
-            GUI.color = oldColor; GUI.matrix = previous; GUI.depth = previousDepth;
         }
 
         void DrawOverview(SquadCoordinator displayed, float scale)
@@ -132,8 +148,6 @@ namespace TacticalGame.Coordination
             var game = GameSession.Instance;
             if (game == null || !game.Overview || game.squadCoordinator != squad || game.overviewCamera == null) return;
             var camera = game.overviewCamera;
-            if (markerStyle == null)
-                markerStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, alignment = TextAnchor.MiddleCenter };
             foreach (var claim in displayed.Claims)
                 if (displayed.TryGetEnemy(claim.EnemyId, out var member) && displayed.TryGetDestination(claim.MarkerId, out var destination) &&
                     Project(camera, member.Position, scale, out var from) && Project(camera, destination.Position, scale, out var to))
@@ -155,6 +169,64 @@ namespace TacticalGame.Coordination
                 MarkerLabel(reported + Vector2.down * 16, "Last seen · " + sighting.Report.ReporterId, new Color(1f, .75f, .3f));
         }
 
+        void DrawGodView(GameSession game, float scale)
+        {
+            var camera = game.GodViewCamera;
+            foreach (var guard in game.targets)
+                if (guard.IsAlive && guard.TryGetComponent<PathMover>(out var mover))
+                    DrawRoute(camera, scale, guard.Position, mover);
+
+            foreach (var claim in squad.Claims)
+            {
+                if (!squad.TryGetEnemy(claim.EnemyId, out var member) || !member.IsAlive ||
+                    !squad.TryGetDestination(claim.MarkerId, out var destination) ||
+                    !Project(camera, member.Position, scale, out var from) || !Project(camera, destination.Position, scale, out var to)) continue;
+                DrawLine(from, to, ClaimColor);
+                MarkerLabel(to + Vector2.up * 13f, claim.EnemyId + " · " + destination.Kind, ClaimColor);
+            }
+
+            if (squad.TryGetSharedSighting(out var sighting) && Project(camera, sighting.Report.ObservedPosition, scale, out var ping))
+            {
+                foreach (var guard in game.targets)
+                    if (guard.IsAlive && guard.EnemyId != sighting.Report.ReporterId &&
+                        guard.TryGetComponent<UtilityEnemyController>(out var utility) &&
+                        utility.SharedSightingSource == sighting.Report.ReporterId && Project(camera, guard.Position, scale, out var recipient))
+                        DrawLine(ping, recipient, SightingColor);
+                MarkerLabel(ping + Vector2.up * 13f, "Last seen · Guard " + sighting.Report.ReporterId, SightingColor);
+            }
+
+            guardLabels.Clear();
+            foreach (var guard in game.targets)
+            {
+                if (!Project(camera, guard.Position + Vector3.up * 1.5f, scale, out var head)) continue;
+                var role = squad.GetRole(guard.EnemyId);
+                string label = guard.EnemyId + "  " + GuardAction(guard);
+                if (role != SquadRole.Unassigned) label += " · " + role;
+                DrawGuardLabel(head, label, guard.IsAlive ? Color.white : new Color(.64f, .7f, .76f));
+            }
+        }
+
+        static string GuardAction(TargetDummy guard)
+        {
+            if (!guard.IsAlive) return "Down";
+            if (guard.TryGetComponent<EnemyWeapon>(out var weapon) && weapon.IsReloading) return "Reloading";
+            if (guard.TryGetComponent<GuardScout>(out var scout) && scout.IsUtilityScouting)
+                return scout.state == ScoutState.Search ? "Searching" : "Patrolling";
+            if (!guard.TryGetComponent<UtilityEnemyController>(out var utility) || !utility.isActiveAndEnabled || !utility.HasDecision)
+                return "Scanning";
+            switch (utility.CurrentAction)
+            {
+                case EnemyAction.Fire: return "Engaging";
+                case EnemyAction.Reload: return "Reloading";
+                case EnemyAction.Investigate: return "Investigating";
+                case EnemyAction.TakeCover: return "Taking cover";
+                case EnemyAction.Flank: return "Flanking";
+                case EnemyAction.FallBack: return "Falling back";
+                case EnemyAction.Support: return "Supporting";
+                default: return "Holding";
+            }
+        }
+
         static string LiveAction(ISquadMember member)
         {
             if (member is TargetDummy guard && guard.TryGetComponent<UtilityEnemyController>(out var utility) && utility.HasDecision)
@@ -170,7 +242,7 @@ namespace TacticalGame.Coordination
             {
                 Vector3 to = route[i];
                 if (Project(camera, from, scale, out var start) && Project(camera, to, scale, out var end))
-                    DrawLine(start, end, new Color(.35f, .8f, 1f, .85f));
+                    DrawLine(start, end, RouteColor);
                 from = to;
             }
         }
@@ -184,8 +256,31 @@ namespace TacticalGame.Coordination
 
         void MarkerLabel(Vector2 point, string label, Color color)
         {
+            DrawMarker(MarkerBounds(point, label), label, color);
+        }
+
+        Rect MarkerBounds(Vector2 point, string label)
+        {
             float width = Mathf.Max(54, markerStyle.CalcSize(new GUIContent(label)).x + 16);
-            var bounds = new Rect(point.x - width * .5f, point.y - 12, width, 24);
+            return new Rect(point.x - width * .5f, point.y - 12, width, 24);
+        }
+
+        void DrawGuardLabel(Vector2 head, string label, Color color)
+        {
+            var bounds = MarkerBounds(head - Vector2.up * 20f, label);
+            for (int i = 0; i < guardLabels.Count; i++)
+            {
+                if (!guardLabels[i].Overlaps(bounds)) continue;
+                bounds.y = guardLabels[i].yMin - bounds.height - 3f;
+                i = -1;
+            }
+            guardLabels.Add(bounds);
+            DrawLine(head, new Vector2(bounds.center.x, bounds.yMax), color);
+            DrawMarker(bounds, label, color);
+        }
+
+        void DrawMarker(Rect bounds, string label, Color color)
+        {
             GUI.color = new Color(.015f, .025f, .04f, .9f);
             GUI.DrawTexture(bounds, Texture2D.whiteTexture);
             GUI.color = color;

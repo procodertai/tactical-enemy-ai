@@ -121,6 +121,7 @@ MonoBehaviour:
   viewCamera: {fileID: 5385208735903790089}
   health: {fileID: 7471726198538998444}
   rifle: {fileID: 6110753527331772723}
+  godViewAvatarPrefab: {fileID: 6306903688321224840, guid: 191140a8f17739d43b368c71eee9d244, type: 3}
   interactionDistance: 3.1
 --- !u!114 &6110753527331772723
 MonoBehaviour:

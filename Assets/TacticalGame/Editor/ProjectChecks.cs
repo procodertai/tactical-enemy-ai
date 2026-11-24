@@ -24,6 +24,7 @@ namespace TacticalGame.Editor
                 Require(game.objectives.Length == 2 && game.targets.Length == 3, path + ": expected 2 terminals and 3 targets");
                 Require(FindAll<ExitGate>().Length == 1 && game.exitGate != null, path + ": expected one wired exit");
                 Require(game.player.rifle != null && game.player.viewCamera != null && game.overviewCamera != null, "Missing weapon/camera wiring");
+                Require(game.player.godViewAvatarPrefab != null, "Missing God View player avatar");
                 foreach (var objective in game.objectives)
                     Require(objective.screen != null && objective.statusText != null && objective.onlineMaterial != null, "Incomplete terminal wiring");
                 foreach (var target in game.targets)
@@ -158,6 +159,8 @@ namespace TacticalGame.Editor
         static readonly Vector3 RetreatMarker = new Vector3(-6.5f, 0f, -8.5f);
         static readonly Vector3 RetreatThreat = new Vector3(-6.5f, 0f, -15.5f);
         static bool sawRetreatMove;
+        static Vector3 godViewStart;
+        static int godViewObjective;
         static readonly List<string> Results = new List<string>();
         const string Running = "LastLight.PlayChecks";
 
@@ -257,7 +260,7 @@ namespace TacticalGame.Editor
                         ProjectChecks.Require(game.Remaining == pausedRemaining && Time.timeScale == 0, "Pause must freeze clock");
                         game.Resume();
                         game.ToggleOverview();
-                        ProjectChecks.Require(!game.CanControl && game.overviewCamera.enabled && !player.viewCamera.enabled, "Overview control lock");
+                        ProjectChecks.Require(game.CanControl && game.overviewCamera.enabled && !player.viewCamera.enabled, "The map keeps player controls active");
                         game.ToggleOverview();
                         game.objectives[1].Interact(player);
                         game.objectives[1].Interact(player);
@@ -272,11 +275,12 @@ namespace TacticalGame.Editor
                     case 4:
                         ProjectChecks.Require(game.State == RoundState.Briefing && game.Completed == 0 && player.health.Current == 100 && rifle.Ammo == 24 && rifle.Reserve == 120, "Restart state reset");
                         game.Begin();
+                        game.ToggleOverview();
                         var hazard = ProjectChecks.FindOne<DamageZone>();
                         Place(player, hazard.transform.position);
                         stage++; waitUntil = Time.unscaledTime + .3f; break;
                     case 5:
-                        ProjectChecks.Require(player.health.Current < 100, "Electrical hazard damage");
+                        ProjectChecks.Require(game.Overview && player.health.Current < 100, "Electrical hazard damage on the map");
                         player.health.TakeDamage(1000);
                         ProjectChecks.Require(game.State == RoundState.Lost, "Health defeat");
                         Results.Add("PASS " + game.missionName + ": clean restart, electrical hazard and health defeat");
@@ -383,7 +387,7 @@ namespace TacticalGame.Editor
                                 if (report.Status == MovementStatus.Arrived) tacticalArrivals++;
                             };
                         game.Begin();
-                        game.ToggleOverview();
+                        game.ToggleGodView();
                         ProjectChecks.Require(game.squadCoordinator.ReportSighting(new SightingReport(attacker.EnemyId, tacticalTestSighting, Time.time)),
                             "Tactical test supplies a shared position");
                         tacticalTestDeadline = Time.unscaledTime + 9f;
@@ -391,9 +395,16 @@ namespace TacticalGame.Editor
                     case 18:
                         var flanker = game.targets[1];
                         var support = game.targets[2];
-                        ProjectChecks.Require(flanker.GetComponent<UtilityEnemyController>().CurrentAction == EnemyAction.Flank &&
-                            support.GetComponent<UtilityEnemyController>().CurrentAction == EnemyAction.Support, "Utility AI uses the squad roles");
+                        var flankController = flanker.GetComponent<UtilityEnemyController>();
+                        var supportController = support.GetComponent<UtilityEnemyController>();
+                        ProjectChecks.Require(flankController.CurrentAction == EnemyAction.Flank &&
+                            supportController.CurrentAction == EnemyAction.Support, "Utility AI uses the squad roles");
                         var registrations = game.squadCoordinator;
+                        var observerOverlay = registrations.GetComponent<SquadCoordinationDebug>();
+                        ProjectChecks.Require(observerOverlay != null && !observerOverlay.Visible && observerOverlay.ShowsLiveGodView &&
+                            flankController.SharedSightingSource == game.targets[0].EnemyId &&
+                            supportController.SharedSightingSource == game.targets[0].EnemyId,
+                            "God View shows the live sighting source and recipients without opening the debug panel");
                         ProjectChecks.Require(registrations.TryGetDestinationClaim(flanker.EnemyId, out var flank) &&
                             registrations.TryGetDestination(flank.MarkerId, out var flankMarker) && flankMarker.Kind == MarkerKind.Flank,
                             "Flanker reserves a reachable flank marker");
@@ -568,6 +579,150 @@ namespace TacticalGame.Editor
                         if (!startedSearch && Time.time < tacticalTestDeadline) break;
                         ProjectChecks.Require(startedSearch, "Guard searches around its last reported position after investigating it");
                         Results.Add("PASS " + game.missionName + ": patrol hands off to tactical investigation and then local search");
+                        game.Restart();
+                        stage++; waitUntil = Time.unscaledTime + .4f; break;
+                    case 31:
+                        foreach (var utility in ProjectChecks.FindAll<UtilityEnemyController>()) utility.enabled = false;
+                        game.Begin();
+                        game.ToggleOverview();
+                        if (sceneIndex == 0)
+                            ProjectChecks.Require(game.overviewCeiling != null && game.overviewCeiling.forceRenderingOff &&
+                                game.overviewCeiling.GetComponent<Collider>().enabled,
+                                "The map reveals the control room while keeping the roof collider enabled");
+                        Place(player, new Vector3(-6.5f, 0, -14.5f));
+                        player.transform.rotation = Quaternion.LookRotation(Vector3.right);
+                        var overheadTarget = game.targets[0];
+                        overheadTarget.transform.position = new Vector3(-6.5f, overheadTarget.Position.y, -9.5f);
+                        Physics.SyncTransforms();
+                        Vector2 targetPointer = game.overviewCamera.WorldToScreenPoint(overheadTarget.Position);
+                        Vector3 start = player.transform.position;
+                        player.ApplyControls(Vector2.up, targetPointer, false, false, false, .1f);
+                        Vector3 travelled = player.transform.position - start;
+                        ProjectChecks.Require(Mathf.Abs(travelled.x) < .05f && travelled.z > .4f,
+                            "The map moves with the screen axes even when the player faces sideways");
+                        ProjectChecks.Require(rifle.TryFire() && overheadTarget.health.Current == 75 && rifle.Ammo == 23,
+                            "The overhead cursor aims the actual rifle at a guard");
+                        guardTestWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        guardTestWall.transform.position = new Vector3(-6.5f, 1.4f, -11.5f);
+                        guardTestWall.transform.localScale = new Vector3(3, 3, .3f);
+                        Physics.SyncTransforms();
+                        stage++; waitUntil = Time.unscaledTime + .25f; break;
+                    case 32:
+                        var coveredTarget = game.targets[0];
+                        Vector2 coveredPointer = game.overviewCamera.WorldToScreenPoint(coveredTarget.Position);
+                        player.ApplyControls(Vector2.zero, coveredPointer, false, false, false, 0f);
+                        ProjectChecks.Require(rifle.TryFire() && coveredTarget.health.Current == 75 && rifle.Ammo == 22,
+                            "A shot aimed from the map still hits a wall between the player and its target");
+                        ProjectChecks.Require(game.Elapsed > 0f, "The mission clock advances while the map is open");
+                        UnityEngine.Object.DestroyImmediate(guardTestWall);
+                        game.Pause();
+                        ProjectChecks.Require(!game.CanControl && game.Overview, "Pause stops the player while the map is open");
+                        game.Resume();
+                        game.ToggleOverview();
+                        ProjectChecks.Require(game.CanControl && !game.Overview && player.viewCamera.enabled && !game.overviewCamera.enabled,
+                            "Tab restores the first-person camera and controls");
+                        if (sceneIndex == 0)
+                            ProjectChecks.Require(!game.overviewCeiling.forceRenderingOff, "The control room roof is visible in first person");
+                        game.ToggleOverview();
+                        CheckMapInteractions(game);
+                        Results.Add("PASS " + game.missionName + ": playable map movement, cursor aiming, wall-blocked shots, camera switching and mission completion");
+                        game.Restart();
+                        stage++; waitUntil = Time.unscaledTime + .4f; break;
+                    case 33:
+                        foreach (var utility in ProjectChecks.FindAll<UtilityEnemyController>()) utility.enabled = false;
+                        game.Begin();
+                        Place(player, new Vector3(-6.5f, 0f, -14.5f));
+                        game.ToggleGodView();
+                        var godCamera = game.GodViewCamera;
+                        ProjectChecks.Require(game.GodView && godCamera.enabled && !godCamera.orthographic &&
+                            !game.overviewCamera.enabled && !player.viewCamera.enabled, "God View uses a separate perspective camera");
+                        ProjectChecks.Require(godCamera.transform.forward.y < -.5f && godCamera.transform.forward.z > .2f,
+                            "God View looks down at an angle");
+                        foreach (var guard in game.targets)
+                            RequireGodViewFraming(godCamera, guard.Position + Vector3.up * 1.6f);
+                        foreach (var objective in game.objectives)
+                            RequireGodViewFraming(godCamera, objective.transform.position);
+                        RequireGodViewFraming(godCamera, game.exitGate.transform.position);
+                        RequireGodViewFraming(godCamera, player.transform.position);
+                        if (sceneIndex == 1)
+                        {
+                            ProjectChecks.Require(game.godViewCeilings.Length == 2, "Rail Depot has two God View roof cutaways");
+                            foreach (var roof in game.godViewCeilings)
+                                ProjectChecks.Require(roof.forceRenderingOff && roof.GetComponent<Collider>().enabled,
+                                    "God View reveals each platform while keeping the canopy collider enabled");
+                            var guardUnderRoof = game.targets[0];
+                            Vector3 aimPoint = guardUnderRoof.GetComponent<Collider>().bounds.center;
+                            Vector2 pointerUnderRoof = godCamera.WorldToScreenPoint(aimPoint);
+                            player.ApplyControls(Vector2.zero, pointerUnderRoof, false, false, false, 0f);
+                            ProjectChecks.Require(Vector3.Angle(player.AimDirection, aimPoint - player.viewCamera.transform.position) < .5f,
+                                "The God View cursor picks a guard under a cutaway canopy");
+                        }
+                        var avatar = player.GetComponentInChildren<GuardLocomotion>();
+                        ProjectChecks.Require(avatar != null && avatar.HasLegRig && avatar.GetComponentInChildren<SkinnedMeshRenderer>() != null,
+                            "God View displays the rigged 3D player avatar");
+                        game.ToggleOverview();
+                        ProjectChecks.Require(game.Overview && game.overviewCamera.enabled && game.overviewCamera.orthographic &&
+                            !godCamera.enabled && !avatar.gameObject.activeSelf, "Tab opens the separate overhead map");
+                        foreach (var roof in game.godViewCeilings)
+                            ProjectChecks.Require(!roof.forceRenderingOff, "Opening the map restores the platforms' canopy renderers");
+                        game.ToggleOverview();
+                        ProjectChecks.Require(game.GodView && avatar.gameObject.activeSelf, "Closing the map returns to God View");
+                        game.ToggleGodView();
+                        ProjectChecks.Require(game.FirstPerson && player.viewCamera.enabled && !avatar.gameObject.activeSelf,
+                            "Switching back to first person hides the external avatar");
+                        game.ToggleGodView();
+                        var godTarget = game.targets[0];
+                        godTarget.transform.position = new Vector3(-6.5f, godTarget.Position.y, -9.5f);
+                        Physics.SyncTransforms();
+                        godViewStart = godCamera.transform.position;
+                        player.transform.rotation = Quaternion.LookRotation(Vector3.right);
+                        Vector2 godPointer = godCamera.WorldToScreenPoint(godTarget.Position + Vector3.up * .9f);
+                        Vector3 playerBefore = player.transform.position;
+                        player.ApplyControls(Vector2.up, godPointer, false, false, false, .12f);
+                        ProjectChecks.Require(player.transform.position.z > playerBefore.z + .45f,
+                            "The player moves in screen directions in God View");
+                        stage++; waitUntil = Time.unscaledTime + .15f; break;
+                    case 34:
+                        var observerCamera = game.GodViewCamera;
+                        ProjectChecks.Require((observerCamera.transform.position - godViewStart).sqrMagnitude < .001f,
+                            "The perspective stays on the arena while the player moves");
+                        var visibleGuard = game.targets[0];
+                        Vector2 visiblePointer = observerCamera.WorldToScreenPoint(visibleGuard.Position + Vector3.up * .9f);
+                        player.ApplyControls(Vector2.zero, visiblePointer, false, false, false, 0f);
+                        ProjectChecks.Require(rifle.TryFire() && visibleGuard.health.Current == 75,
+                            "The perspective cursor can aim the rifle at a visible guard");
+                        guardTestWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        guardTestWall.transform.position = new Vector3(-6.5f, 1.2f, -11.5f);
+                        guardTestWall.transform.localScale = new Vector3(3f, 2.6f, .3f);
+                        Physics.SyncTransforms();
+                        stage++; waitUntil = Time.unscaledTime + .25f; break;
+                    case 35:
+                        var hiddenGuard = game.targets[0];
+                        Vector2 hiddenPointer = game.ActiveCamera.WorldToScreenPoint(hiddenGuard.Position + Vector3.up * .9f);
+                        player.ApplyControls(Vector2.zero, hiddenPointer, false, false, false, 0f);
+                        ProjectChecks.Require(rifle.TryFire() && hiddenGuard.health.Current == 75,
+                            "God View does not let the rifle fire through cover");
+                        UnityEngine.Object.DestroyImmediate(guardTestWall);
+                        godViewObjective = 0;
+                        Place(player, game.objectives[godViewObjective].transform.position - Vector3.forward * 2.2f);
+                        stage++; waitUntil = Time.unscaledTime + .1f; break;
+                    case 36:
+                        var godViewItem = godViewObjective < game.objectives.Length
+                            ? (WorldInteractable)game.objectives[godViewObjective] : game.exitGate;
+                        Vector2 interactionPointer = game.ActiveCamera.WorldToScreenPoint(godViewItem.transform.position + Vector3.up * 1.45f);
+                        player.ApplyControls(Vector2.zero, interactionPointer, false, false, true, 0f);
+                        ProjectChecks.Require(player.Focus == godViewItem,
+                            "God View can interact with " + godViewItem.name + " within reach");
+                        if (++godViewObjective <= game.objectives.Length)
+                        {
+                            var next = godViewObjective < game.objectives.Length
+                                ? game.objectives[godViewObjective].transform : game.exitGate.transform;
+                            Place(player, next.position - Vector3.forward * 2.2f);
+                            waitUntil = Time.unscaledTime + .1f;
+                            break;
+                        }
+                        ProjectChecks.Require(game.State == RoundState.Won, "The player can complete the mission in 3D God View");
+                        Results.Add("PASS " + game.missionName + ": arena-wide 3D God View, player avatar, map return, aiming, cover and mission completion");
                         if (sceneIndex == 0)
                         {
                             sceneIndex = 1;
@@ -589,6 +744,42 @@ namespace TacticalGame.Editor
                 Results.Add("FAIL " + error);
                 Debug.LogException(error);
                 Complete(true);
+            }
+        }
+
+        static void CheckMapInteractions(GameSession game)
+        {
+            var player = game.player;
+            Vector2 distantPointer = game.overviewCamera.WorldToScreenPoint(game.objectives[0].transform.position);
+            player.ApplyControls(Vector2.zero, distantPointer, false, false, true, 0f);
+            ProjectChecks.Require(!game.objectives[0].Completed, "The map cannot use a terminal from across the level");
+            foreach (var terminal in game.objectives)
+            {
+                InteractFromMap(game, terminal);
+                ProjectChecks.Require(terminal.Completed, "Pointing at a terminal within reach lets the player restore it from the map");
+            }
+            InteractFromMap(game, game.exitGate);
+            ProjectChecks.Require(game.State == RoundState.Won, "The player can extract after restoring both terminals from the map");
+        }
+
+        static void RequireGodViewFraming(Camera camera, Vector3 position)
+        {
+            Vector3 point = camera.WorldToViewportPoint(position);
+            ProjectChecks.Require(point.x > .05f && point.x < .95f && point.y > .05f && point.y < .95f && point.z > 0f,
+                "God View frames the guards and mission locations together");
+        }
+
+        static void InteractFromMap(GameSession game, WorldInteractable item)
+        {
+            var player = game.player;
+            Vector3 position = item.transform.position;
+            Vector2 pointer = game.overviewCamera.WorldToScreenPoint(position);
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 offset = Quaternion.Euler(0f, i * 45f, 0f) * Vector3.forward * 2.2f;
+                Place(player, position + offset);
+                player.ApplyControls(Vector2.zero, pointer, false, false, true, 0f);
+                if (player.Focus == item) return;
             }
         }
 
