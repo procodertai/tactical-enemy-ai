@@ -45,6 +45,7 @@ namespace TacticalGame
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.F2) && (tacticalNavigation == null || target.EnemyId == "01")) showOverlay = !showOverlay;
+            useGUILayout = showOverlay; // the F2 panel uses GUILayout; skip the layout pass while it is hidden
             var game = GameSession.Instance;
             if (game == null || game.State != RoundState.Playing || !target.IsAlive)
             {

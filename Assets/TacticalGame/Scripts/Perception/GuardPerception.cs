@@ -70,6 +70,7 @@ namespace TacticalGame
         static Material lineMaterial;
         readonly RaycastHit[] hits = new RaycastHit[16];
         readonly RaycastHit[] soundHits = new RaycastHit[16];
+        readonly Vector3[] bodyPoints = new Vector3[3]; // reused every frame: no per-frame allocation
         TargetDummy dummy;
         PlayerController player;
         CharacterController playerBody;
@@ -181,15 +182,16 @@ namespace TacticalGame
             if (playerBody != null)
             {
                 Bounds b = playerBody.bounds;
-                return new[]
-                {
-                    new Vector3(b.center.x, b.min.y + .15f, b.center.z),
-                    b.center,
-                    new Vector3(b.center.x, b.max.y - .1f, b.center.z)
-                };
+                bodyPoints[0] = new Vector3(b.center.x, b.min.y + .15f, b.center.z);
+                bodyPoints[1] = b.center;
+                bodyPoints[2] = new Vector3(b.center.x, b.max.y - .1f, b.center.z);
+                return bodyPoints;
             }
             Vector3 p = player.transform.position;
-            return new[] { p + Vector3.up * .3f, p + Vector3.up * .9f, p + Vector3.up * 1.6f };
+            bodyPoints[0] = p + Vector3.up * .3f;
+            bodyPoints[1] = p + Vector3.up * .9f;
+            bodyPoints[2] = p + Vector3.up * 1.6f;
+            return bodyPoints;
         }
 
         bool HasLineOfSight(Vector3 from, Vector3 to)
@@ -210,7 +212,7 @@ namespace TacticalGame
                 if (sightHits[i].distance < nearest) { nearest = sightHits[i].distance; first = c; }
             }
             // Visible when nothing blocks, or the first thing hit belongs to the player.
-            return first == null || first.GetComponentInParent<PlayerController>() == player;
+            return first == null || first.transform.IsChildOf(player.transform);
         }
 
         // ---- DAMAGE: a hit gives the shooter's position immediately ----
@@ -281,7 +283,8 @@ namespace TacticalGame
             {
                 Collider c = soundHits[i].collider;
                 if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
-                if (c.GetComponentInParent<PlayerController>() != null || c.GetComponentInParent<TargetDummy>() != null) continue;
+                if (player != null && c.transform.IsChildOf(player.transform)) continue;
+                if (c.GetComponentInParent<TargetDummy>() != null) continue;
                 walls++;
             }
             return Mathf.Min(walls, 3);
@@ -299,7 +302,7 @@ namespace TacticalGame
             {
                 Collider c = hits[i].collider;
                 if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
-                if (c.GetComponentInParent<PlayerController>() != null) continue;
+                if (player != null && c.transform.IsChildOf(player.transform)) continue;
                 return false;
             }
             return true;
@@ -416,8 +419,34 @@ namespace TacticalGame
 
         GUIStyle roleLabelStyle;
         GUIStyle iconStyle;
+        static readonly string[] StateLabels =
+            { "Unaware", "Unaware (sees)", "Suspicious", "Suspicious (sees)", "Alerted", "Alerted (sees)" };
+        static string[] roleNames;
+        static readonly GUIContent overlayContent = new GUIContent(); // reused: GUI.Label(string) allocates
 
-        void OnGUI()
+        static void OverlayLabel(Rect rect, string value, GUIStyle style = null)
+        {
+            overlayContent.text = value;
+            if (style != null) GUI.Label(rect, overlayContent, style);
+            else GUI.Label(rect, overlayContent);
+        }
+
+        static string RoleName(SquadRole role)
+        {
+            if (roleNames == null)
+            {
+                var values = (SquadRole[])Enum.GetValues(typeof(SquadRole));
+                int max = 0;
+                foreach (var value in values) max = Mathf.Max(max, (int)value);
+                roleNames = new string[max + 1];
+                foreach (var value in values) if ((int)value >= 0) roleNames[(int)value] = value.ToString();
+            }
+            int index = (int)role;
+            return index >= 0 && index < roleNames.Length && roleNames[index] != null ? roleNames[index] : role.ToString();
+        }
+
+        // Called by GameHud during its repaint (one IMGUI pass for the whole HUD instead of one per guard).
+        public void DrawOverlay()
         {
             if (!showOverlay || !Application.isPlaying || !Active()) return;
             var game = GameSession.Instance;
@@ -434,22 +463,22 @@ namespace TacticalGame
             GUI.color = StateColor();
             GUI.DrawTexture(new Rect(x + 1f, y + 1f, 78f * Awareness, 6f), Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(new Rect(x - 10f, y - 20f, 140f, 20f), State + (CanSeeTarget ? " (sees)" : ""));
+            OverlayLabel(new Rect(x - 10f, y - 20f, 140f, 20f), StateLabels[(int)State * 2 + (CanSeeTarget ? 1 : 0)]);
             DrawRoleLabel(bar);
             GUI.color = old;
         }
 
         void DrawStateIcon(Camera cam, Vector3 screenPoint)
         {
-            if (State == AwarenessState.Unaware || Event.current.type != EventType.Repaint || !VisibleFrom(cam)) return;
+            if (State == AwarenessState.Unaware || !VisibleFrom(cam)) return;
             if (iconStyle == null)
                 iconStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 26, fontStyle = FontStyle.Bold };
             Color old = GUI.color;
             var rect = new Rect(screenPoint.x - 20f, Screen.height - screenPoint.y - 30f, 40f, 36f);
             GUI.color = new Color(0f, 0f, 0f, .75f);
-            GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), State == AwarenessState.Alerted ? "!" : "?", iconStyle);
+            OverlayLabel(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), State == AwarenessState.Alerted ? "!" : "?", iconStyle);
             GUI.color = StateColor();
-            GUI.Label(rect, State == AwarenessState.Alerted ? "!" : "?", iconStyle);
+            OverlayLabel(rect, State == AwarenessState.Alerted ? "!" : "?", iconStyle);
             GUI.color = old;
         }
 
@@ -468,7 +497,7 @@ namespace TacticalGame
             GUI.color = new Color(0f, 0f, 0f, .7f);
             GUI.DrawTexture(label, Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(label, role.ToString(), roleLabelStyle);
+            OverlayLabel(label, RoleName(role), roleLabelStyle);
         }
     }
 }

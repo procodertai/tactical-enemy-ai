@@ -15,7 +15,11 @@ namespace TacticalGame.Coordination
         public bool Visible { get => visible; set => visible = value; }
         public SquadCoordinator DisplayedSquad => example != null ? example : squad;
 
-        void Awake() => squad = GetComponent<SquadCoordinator>();
+        void Awake()
+        {
+            squad = GetComponent<SquadCoordinator>();
+            useGUILayout = false; // the panel draws with absolute rects; skip IMGUI's layout pass
+        }
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.F3))

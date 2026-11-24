@@ -1,8 +1,8 @@
-# Milestone 2 — Cải tiến UI & Perception
+# Milestone 2 — Cải tiến UI, Perception & Hiệu năng
 
 **Last Light** · Phụ trách: Ngan · 24/11/2026
 
-Người chơi giờ biết guard đang để ý mình mà không bị lộ vị trí guard xuyên tường; guard nghe và phản ứng thực tế hơn.
+Người chơi giờ biết guard đang để ý mình mà không bị lộ vị trí guard xuyên tường; guard nghe và phản ứng thực tế hơn; bộ nhớ rác do code game tạo ra mỗi frame giảm 72%.
 
 ## Vấn đề trước khi cải tiến
 
@@ -32,9 +32,32 @@ Người chơi giờ biết guard đang để ý mình mà không bị lộ vị
 
 Hệ quả: guard phải đi tìm thật sự khi chỉ nghe thấy, nên hành vi điều tra và tìm kiếm có ý nghĩa hơn; tường và đường đi vòng trở thành lựa chọn lén lút thật sự.
 
+## Tối ưu hiệu năng
+
+Bộ nhớ rác (GC) do code game tạo ra mỗi frame giảm từ 7,1 KB xuống 2,0 KB (−72%), gameplay giữ nguyên.
+
+| Chỉ số (mỗi frame) | Trước | Sau | Thay đổi |
+| --- | --- | --- | --- |
+| Bộ nhớ rác của code game | 7,1 KB | 2,0 KB | −72% |
+| Chi phí khởi tạo IMGUI | 2,9 KB | 0 | −100% |
+| Bộ nhớ rác của perception (3 guard) | 0,5 KB | 8 byte | −98% |
+| Thời gian vẽ giao diện (IMGUI) | 0,21 ms | 0,17 ms | −16% |
+| FPS | 120 | 120 | Đã chạm trần 120 FPS |
+
+Đã làm:
+- Bỏ bước tính layout thừa của IMGUI (HUD chỉ dùng vị trí cố định).
+- Gom phần vẽ trên đầu 3 guard vào một lần vẽ chung với HUD, thay vì mỗi guard tự vẽ.
+- HUD lúc chơi chỉ vẽ ở bước repaint, bỏ qua các sự kiện chuột và bàn phím.
+- Chuỗi chữ (đồng hồ, máu, đạn, mục tiêu) chỉ tạo lại khi giá trị thay đổi.
+- Kiểm tra tầm nhìn của guard dùng lại bộ đệm thay vì tạo mảng mới mỗi frame.
+
+Cách đo: một công cụ benchmark tự chạy map Substation 20 giây (sau 3 giây khởi động) trong cùng điều kiện, đọc số liệu từ Unity Profiler, chỉ tính phần code game. Máy Apple M5, Unity 6.6.
+
+Ý nghĩa: ít bộ nhớ rác thì garbage collector chạy thưa hơn, giảm các lần giật khung hình ngắt quãng. FPS trung bình không đổi vì game vốn đã chạy ở mức trần 120 FPS. Khoảng 2 KB còn lại nằm trong hàm vẽ chữ của IMGUI; muốn về gần 0 cần chuyển HUD sang Canvas.
+
 ## Kết quả kiểm thử
 
-- 20/20 bài kiểm thử gameplay tự động đạt trên cả hai map Substation và Rail Depot, gồm phát hiện bằng tầm nhìn, chia sẻ thông tin trong squad, che chắn, trí nhớ và thính giác.
+- 20/20 bài kiểm thử gameplay tự động đạt trên cả hai map Substation và Rail Depot, gồm phát hiện bằng tầm nhìn, chia sẻ thông tin trong squad, che chắn, trí nhớ và thính giác. Chạy lại sau khi tối ưu hiệu năng: vẫn 20/20.
 - Chơi thử trực tiếp: sau tiếng súng, guard hiện **?**; khi phát hiện người chơi thì chuyển **!** đỏ và vạch cảnh báo chỉ đúng hướng.
 
 ## Hướng phát triển tiếp
@@ -44,3 +67,5 @@ Hệ quả: guard phải đi tìm thật sự khi chỉ nghe thấy, nên hành 
 - Ngồi xuống (crouch) và tiếng bước chân khi đi bộ
 - Guard dự đoán hướng người chơi di chuyển khi mất dấu
 - Squad chia sẻ cả những lần "nghi ngờ" từ tiếng động
+- Chuyển HUD sang Canvas để loại bỏ phần bộ nhớ rác còn lại
+- Tăng tốc tìm đường A* bằng hàng đợi ưu tiên (priority queue)
