@@ -52,6 +52,7 @@ namespace TacticalGame
                 if (game != null && game.GodView) showGodViewScores = !showGodViewScores;
                 else showOverlay = !showOverlay;
             }
+            useGUILayout = game != null && game.GodView ? showGodViewScores : showOverlay;
             SharedSightingSource = null;
             if (game == null || game.State != RoundState.Playing || !target.IsAlive)
             {

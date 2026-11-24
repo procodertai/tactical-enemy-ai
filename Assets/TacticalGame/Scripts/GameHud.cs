@@ -12,10 +12,25 @@ namespace TacticalGame
         static readonly Color Green = new Color(.40f, 1f, .65f);
         static readonly Color Orange = new Color(1f, .67f, .29f);
         GUIStyle text;
+        GUIStyleState textNormal; // GUIStyle.normal returns a new wrapper on every access; keep one
+        readonly GUIContent labelContent = new GUIContent(); // GUI.Label(string) builds new content each call
         GUIStyle button;
         float scale;
         float width;
         float height;
+
+        // Cached HUD strings: rebuilt only when the value they show changes, so the HUD does not
+        // allocate new strings every frame.
+        string missionTitle, missionTitleFor, clockText, healthText, ammoText, reserveText, guardsText, promptText;
+        int clockValue = -1, healthValue = -1, ammoValue = -1, reserveValue = -1, guardsValue = -1, promptVersion = -1;
+        WorldInteractable promptFocus;
+        string[] objectiveTexts;
+        int[] objectiveStates;
+        string[] markerTexts;
+        int[] markerValues;
+
+        // The HUD uses absolute rects only, so IMGUI's layout pass is skipped entirely.
+        void Awake() => useGUILayout = false;
 
         void OnGUI()
         {
@@ -29,17 +44,24 @@ namespace TacticalGame
             if (text == null)
             {
                 text = new GUIStyle(GUI.skin.label) { fontSize = 18, richText = false, wordWrap = true };
+                textNormal = text.normal;
                 button = new GUIStyle(GUI.skin.button) { fontSize = 18, fontStyle = FontStyle.Bold };
                 button.normal.textColor = Color.white;
             }
 
             if (game.State == RoundState.Playing)
             {
+                // The in-game HUD has no controls: only the repaint event needs to draw anything.
+                if (Event.current.type != EventType.Repaint) return;
                 DrawMission(game);
                 DrawPlayer(game);
                 DrawMarkers(game);
                 if (!game.FirstPerson) DrawPlayerMarker(game);
-                if (game.FirstPerson) DrawCrosshair(game);
+                else
+                {
+                    DrawCrosshair(game);
+                    DrawDetection(game);
+                }
                 if (Time.unscaledTime < game.HurtUntil)
                 {
                     Box(0, 0, width, 8, new Color(1f, .22f, .1f, .8f));
@@ -47,6 +69,7 @@ namespace TacticalGame
                     Box(0, 0, 8, height, new Color(1f, .22f, .1f, .8f));
                     Box(width - 8, 0, 8, height, new Color(1f, .22f, .1f, .8f));
                 }
+                DrawGuardOverlays(game);
             }
             else DrawMenu(game);
         }
@@ -55,18 +78,32 @@ namespace TacticalGame
         {
             Box(30, 28, 345, 166, Ink);
             Box(30, 28, 3, 166, Cyan);
-            Label(49, 42, 310, 22, "OPERATION / " + game.missionName, 13, Cyan, true);
+            if (missionTitleFor != game.missionName) { missionTitleFor = game.missionName; missionTitle = "OPERATION / " + game.missionName; }
+            Label(49, 42, 310, 22, missionTitle, 13, Cyan, true);
+            if (objectiveTexts == null || objectiveTexts.Length != game.objectives.Length)
+            {
+                objectiveTexts = new string[game.objectives.Length];
+                objectiveStates = new int[game.objectives.Length];
+                for (int i = 0; i < objectiveStates.Length; i++) objectiveStates[i] = -1;
+            }
             for (int i = 0; i < game.objectives.Length; i++)
             {
                 var item = game.objectives[i];
-                Label(49, 78 + i * 35, 303, 28, (item.Completed ? "[+] " : "[  ] ") + item.displayName, 19, item.Completed ? Green : Color.white);
+                int state = item.Completed ? 1 : 0;
+                if (objectiveStates[i] != state)
+                {
+                    objectiveStates[i] = state;
+                    objectiveTexts[i] = (item.Completed ? "[+] " : "[  ] ") + item.displayName;
+                }
+                Label(49, 78 + i * 35, 303, 28, objectiveTexts[i], 19, item.Completed ? Green : Color.white);
             }
             Label(49, 153, 310, 24, game.ExitUnlocked ? "EXIT OPEN / Reach the green gate" : "Restore power to unlock extraction", 14, game.ExitUnlocked ? Green : Muted);
 
             Box(width - 236, 28, 206, 92, Ink);
             Label(width - 217, 39, 173, 19, "MISSION CLOCK", 12, Muted);
             int time = Mathf.CeilToInt(game.Remaining);
-            Label(width - 217, 60, 173, 44, (time / 60).ToString("00") + ":" + (time % 60).ToString("00"), 34, time < 60 ? Orange : Color.white, true);
+            if (time != clockValue) { clockValue = time; clockText = (time / 60).ToString("00") + ":" + (time % 60).ToString("00"); }
+            Label(width - 217, 60, 173, 44, clockText, 34, time < 60 ? Orange : Color.white, true);
 
             if (game.GodView)
             {
@@ -95,14 +132,18 @@ namespace TacticalGame
             var player = game.player;
             Box(30, height - 131, 263, 98, Ink);
             Label(49, height - 116, 110, 24, "HEALTH", 13, Muted, true);
-            Label(186, height - 119, 85, 34, Mathf.CeilToInt(player.health.Current).ToString("000"), 27, player.health.Current <= 30 ? Orange : Color.white, true, TextAnchor.MiddleRight);
+            int health = Mathf.CeilToInt(player.health.Current);
+            if (health != healthValue) { healthValue = health; healthText = health.ToString("000"); }
+            Label(186, height - 119, 85, 34, healthText, 27, player.health.Current <= 30 ? Orange : Color.white, true, TextAnchor.MiddleRight);
             Box(49, height - 67, 222, 7, new Color(.18f, .24f, .27f));
             Box(49, height - 67, 222 * player.health.Current / player.health.maximum, 7, Green);
 
             Box(width - 277, height - 131, 247, 98, Ink);
             Label(width - 257, height - 117, 190, 22, "R-24 / SERVICE RIFLE", 12, Muted, true);
-            Label(width - 259, height - 93, 110, 49, player.rifle.Ammo.ToString("00"), 39, Color.white, true);
-            Label(width - 163, height - 77, 110, 29, "/ " + player.rifle.Reserve.ToString("000"), 22, Muted);
+            if (player.rifle.Ammo != ammoValue) { ammoValue = player.rifle.Ammo; ammoText = ammoValue.ToString("00"); }
+            if (player.rifle.Reserve != reserveValue) { reserveValue = player.rifle.Reserve; reserveText = "/ " + reserveValue.ToString("000"); }
+            Label(width - 259, height - 93, 110, 49, ammoText, 39, Color.white, true);
+            Label(width - 163, height - 77, 110, 29, reserveText, 22, Muted);
             if (player.rifle.IsReloading)
             {
                 Label(width / 2 - 100, height / 2 + 70, 200, 24, "RELOADING", 14, Orange, true, TextAnchor.MiddleCenter);
@@ -119,7 +160,11 @@ namespace TacticalGame
             {
                 float promptTop = game.GodView ? height - 87 : height / 2 + 128;
                 Box(width / 2 - 250, promptTop, 500, 43, Ink);
-                Label(width / 2 - 240, promptTop + 8, 480, 29, player.Focus.Prompt, 17, Cyan, true, TextAnchor.MiddleCenter);
+                // A prompt only changes with the focused object or with mission progress.
+                int version = game.Completed + (game.ExitUnlocked ? 100 : 0);
+                if (!ReferenceEquals(player.Focus, promptFocus) || version != promptVersion)
+                { promptFocus = player.Focus; promptVersion = version; promptText = player.Focus.Prompt; }
+                Label(width / 2 - 240, promptTop + 8, 480, 29, promptText, 17, Cyan, true, TextAnchor.MiddleCenter);
             }
             if (Time.unscaledTime < game.MessageUntil)
             {
@@ -127,7 +172,9 @@ namespace TacticalGame
                 Box(width / 2 - 350, messageTop, 700, 49, Ink);
                 Label(width / 2 - 332, messageTop + 9, 664, 34, game.Message, 16, Color.white, false, TextAnchor.MiddleCenter);
             }
-            Label(width - 236, 126, 206, 27, "GUARDS " + game.TargetsDown + " / " + game.targets.Length, 13, Muted, false, TextAnchor.MiddleRight);
+            int down = game.TargetsDown;
+            if (down != guardsValue) { guardsValue = down; guardsText = "GUARDS " + down + " / " + game.targets.Length; }
+            Label(width - 236, 126, 206, 27, guardsText, 13, Muted, false, TextAnchor.MiddleRight);
         }
 
         void DrawCrosshair(GameSession game)
@@ -148,20 +195,72 @@ namespace TacticalGame
             Box(x - 1, y - 1, 2, 2, color);
         }
 
+        // Marks around the crosshair point toward guards that are suspicious (yellow, grows with
+        // awareness) or alerted (red). It gives direction only, never a guard's position through walls.
+        void DrawDetection(GameSession game)
+        {
+            if (Event.current.type != EventType.Repaint || game.player.viewCamera == null) return;
+            Transform view = game.player.viewCamera.transform;
+            Vector3 forward = view.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < .0001f) return;
+            Vector3 center = new Vector3(width / 2, height / 2, 0f);
+            Matrix4x4 baseMatrix = GUI.matrix;
+            foreach (var target in game.targets)
+            {
+                if (target == null || !target.IsAlive || !target.TryGetComponent<GuardPerception>(out var sense)) continue;
+                if (!sense.isActiveAndEnabled || sense.State == GuardPerception.AwarenessState.Unaware) continue;
+                Vector3 toGuard = target.transform.position - view.position;
+                toGuard.y = 0f;
+                if (toGuard.sqrMagnitude < .01f) continue;
+                float angle = Vector3.SignedAngle(forward, toGuard, Vector3.up);
+                bool alerted = sense.State == GuardPerception.AwarenessState.Alerted;
+                Color color = alerted ? new Color(1f, .25f, .15f, .95f) : new Color(1f, .8f, .2f, .35f + .55f * sense.Awareness);
+                float length = alerted ? 64f : 26f + 34f * sense.Awareness;
+                GUI.matrix = baseMatrix * Matrix4x4.TRS(center, Quaternion.Euler(0f, 0f, angle), Vector3.one);
+                Box(-length / 2, -118, length, alerted ? 6 : 4, color);
+                Box(-3, -128, 6, 9, color);
+            }
+            GUI.matrix = baseMatrix;
+        }
+
+        // Guard icons (and the F7 debug bars) are drawn here in screen pixels, after the scaled HUD.
+        void DrawGuardOverlays(GameSession game)
+        {
+            Matrix4x4 hudMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.identity;
+            foreach (var target in game.targets)
+                if (target != null && target.TryGetComponent<GuardPerception>(out var sense) && sense.isActiveAndEnabled)
+                    sense.DrawOverlay();
+            GUI.matrix = hudMatrix;
+        }
+
         void DrawMarkers(GameSession game)
         {
             if (!game.Overview && !Input.GetKey(KeyCode.T)) return;
             var camera = game.ActiveCamera;
-            foreach (var objective in game.objectives)
+            if (markerTexts == null || markerTexts.Length != game.objectives.Length)
             {
+                markerTexts = new string[game.objectives.Length];
+                markerValues = new int[game.objectives.Length];
+                for (int i = 0; i < markerValues.Length; i++) markerValues[i] = int.MinValue;
+            }
+            for (int index = 0; index < game.objectives.Length; index++)
+            {
+                var objective = game.objectives[index];
                 Vector3 point = camera.WorldToScreenPoint(objective.transform.position + Vector3.up * 2.9f);
                 if (point.z < 0f) continue;
                 float x = point.x / scale;
                 float y = (Screen.height - point.y) / scale;
                 if (x < 80 || x > width - 80 || y < (game.Overview ? 80 : 205) || y > height - (game.Overview ? 150 : 240)) continue;
-                float metres = Vector3.Distance(game.player.transform.position, objective.transform.position);
+                int metres = objective.Completed ? -1 : Mathf.RoundToInt(Vector3.Distance(game.player.transform.position, objective.transform.position));
+                if (markerValues[index] != metres)
+                {
+                    markerValues[index] = metres;
+                    markerTexts[index] = objective.letter + (objective.Completed ? " / OK" : " / " + metres + "m");
+                }
                 Box(x - 47, y - 14, 94, 31, Ink);
-                Label(x - 45, y - 11, 90, 26, objective.letter + (objective.Completed ? " / OK" : " / " + Mathf.RoundToInt(metres) + "m"), 14, objective.Completed ? Green : Cyan, true, TextAnchor.MiddleCenter);
+                Label(x - 45, y - 11, 90, 26, markerTexts[index], 14, objective.Completed ? Green : Cyan, true, TextAnchor.MiddleCenter);
             }
             if (game.ExitUnlocked && game.exitGate != null)
             {
@@ -217,7 +316,7 @@ namespace TacticalGame
                 if (game.useUtilitySquad && game.State == RoundState.Briefing)
                     Label(x + 39, y + 506, 470, 26, "GUARD AI: " + (game.AiMode == GuardAiMode.Squad ? "Squad" : "Chase only") + "  [F6]", 15, Cyan, true);
                 Label(x + 550, y + 213, 325, 25, "FIELD CONTROLS", 13, Cyan, true);
-                Label(x + 550, y + 255, 335, 190, "WASD / arrows       Move\nMouse                      Look / aim\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Zoom in first person\nR / E                         Reload / Interact\nTab / V                    Map / 3D God View\nEscape                     Pause", 17, Color.white);
+                Label(x + 550, y + 255, 335, 198, "WASD / arrows       Move\nMouse                      Look / aim\nShift / Space          Sprint / Jump\nLeft / Right click    Fire / Zoom in first person\nR / E                         Reload / Interact\nTab / V                    Map / 3D God View\nF3 / F7                    Squad / Perception\nEscape                     Pause", 17, Color.white);
                 Label(x + 550, y + 460, 300, 22, "LOOK SENSITIVITY", 12, Muted, true);
                 float sensitivity = GUI.HorizontalSlider(new Rect(x + 550, y + 494, 255, 20), game.player.sensitivity, .3f, 5f);
                 if (!Mathf.Approximately(sensitivity, game.player.sensitivity)) game.player.SetSensitivity(sensitivity);
@@ -257,9 +356,10 @@ namespace TacticalGame
         {
             text.fontSize = size;
             text.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
-            text.normal.textColor = color;
+            textNormal.textColor = color;
             text.alignment = align;
-            GUI.Label(new Rect(x, y, w, h), value, text);
+            labelContent.text = value;
+            GUI.Label(new Rect(x, y, w, h), labelContent, text);
         }
 
         static void Box(float x, float y, float w, float h, Color color)
