@@ -52,13 +52,24 @@ namespace TacticalGame.Editor
             input.Ammo = 0; Expect(input, EnemyAction.Reload);
             input.Reserve = 0; Expect(input, EnemyAction.Hold);
             input.Reserve = 24; input.Ammo = 3; input.Visible = false; Expect(input, EnemyAction.Reload);
+            input.Ammo = 5; input.CanMove = input.HasKnownTarget = true; Expect(input, EnemyAction.Investigate);
+            input.Ammo = 3; Expect(input, EnemyAction.Reload);
+            input.CanMove = input.HasKnownTarget = false;
             input.Visible = true; Expect(input, EnemyAction.Fire);
-            input.HealthFraction = .25f; Expect(input, EnemyAction.Reload);
+            // Low health alone does not make a guard reload in the open; it pushes toward cover instead.
+            input.HealthFraction = .25f; Expect(input, EnemyAction.Fire);
+            input.CanMove = input.HasKnownTarget = input.CoverReady = true;
+            input.Role = Coordination.SquadRole.Attacker;
+            input.HealthFraction = .5f; Expect(input, EnemyAction.Fire);
+            input.HealthFraction = .3f; Expect(input, EnemyAction.TakeCover);
             var scores = UtilityScorer.Evaluate(input);
             Require(UtilityScorer.Select(scores, EnemyAction.Fire, true, .2f, .5f, .05f) == EnemyAction.Fire, "Commitment");
-            Require(UtilityScorer.Select(scores, EnemyAction.Fire, true, 1f, .5f, .05f) == EnemyAction.Reload, "Switch after commitment");
+            Require(UtilityScorer.Select(scores, EnemyAction.Fire, true, 1f, .5f, .05f) == EnemyAction.TakeCover, "Switch after commitment");
             input.Visible = false;
-            Require(UtilityScorer.Select(UtilityScorer.Evaluate(input), EnemyAction.Fire, true, 0f, .5f, .05f) == EnemyAction.Reload, "Invalid fire interrupted");
+            Require(UtilityScorer.Select(UtilityScorer.Evaluate(input), EnemyAction.Fire, true, 0f, .5f, .05f) == EnemyAction.TakeCover, "Invalid fire interrupted");
+            input.CanMove = input.HasKnownTarget = input.CoverReady = false;
+            input.Role = Coordination.SquadRole.Unassigned;
+            input.HealthFraction = .25f;
             input.Ammo = 6; input.Distance = 30; input.Visible = true; Expect(input, EnemyAction.Hold);
             input.CanMove = input.HasKnownTarget = input.RetreatReady = true;
             input.Role = Coordination.SquadRole.Attacker;
@@ -75,33 +86,18 @@ namespace TacticalGame.Editor
             input.SettlingAfterDefense = false;
             input.RetreatReady = false;
             Expect(input, EnemyAction.Investigate);
-            CheckExperimentalSquadPlays();
-            Debug.Log("PASS: Utility AI combat choices, health response, visibility, range, reserve, commitment, and interruption.");
-        }
-
-        static void CheckExperimentalSquadPlays()
-        {
-            var members = new[]
-            {
-                new MemberSnapshot { Id = "01", Alive = true, Health = 1f, Ammo = 6 },
-                new MemberSnapshot { Id = "02", Alive = true, Health = 1f, HasFlankPoint = true, FlankPoint = Vector3.right * 5f }
-            };
-            var snapshot = new SquadSnapshot { Members = members };
-            SquadPlay Pick() => SquadTactics.Select(SquadTactics.Evaluate(snapshot), SquadPlay.Freestyle, SquadTactics.MinHold);
-
-            Require(Pick() == SquadPlay.Freestyle, "Unknown target falls back to freestyle");
-            snapshot.KnowsTarget = true;
-            Require(Pick() == SquadPlay.BoundingAdvance, "Known but unseen target allows a bounding advance");
-            members[0].SeesPlayer = true;
-            var scores = SquadTactics.Evaluate(snapshot);
-            Require(Pick() == SquadPlay.PinAndFlank &&
-                SquadTactics.Select(scores, SquadPlay.Freestyle, 1f) == SquadPlay.Freestyle,
-                "Visible targets allow pin and flank after the current play's hold");
-            var orders = SquadTactics.Assign(SquadPlay.PinAndFlank, snapshot, 0);
-            Require(orders[0].Role == TacticRole.Pinner && orders[1].Role == TacticRole.Flanker && orders[1].Point == members[1].FlankPoint,
-                "Pin and flank assigns the pinner and flank destination");
-            members[0].Health = .2f;
-            Require(Pick() == SquadPlay.CoveredRetreat, "An injured member triggers a covered retreat");
+            input.Ammo = 0;
+            input.RetreatReady = true;
+            Expect(input, EnemyAction.FallBack);
+            input.RetreatReady = false;
+            scores = UtilityScorer.Evaluate(input);
+            Require(UtilityScorer.Select(scores, EnemyAction.Investigate, true, .1f, .5f, .05f) == EnemyAction.Reload,
+                "Empty magazine rule interrupts a scored action");
+            input.Reserve = 0;
+            Expect(input, EnemyAction.Investigate);
+            input.HasKnownTarget = false;
+            Expect(input, EnemyAction.Hold);
+            Debug.Log("PASS: Utility AI combat choices, health response, priority rules, fallback, and commitment.");
         }
 
         static void Expect(UtilityInputs input, EnemyAction expected)

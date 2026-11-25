@@ -10,12 +10,15 @@ namespace TacticalGame
         const float MapPitch = 60f, Fov = 50f;
         Camera cam;
         Transform follow;
+        Transform mapFocus;
         CameraMode mode = CameraMode.Map;
         Vector3 velocity;
+        float mapZoom = 1f;
         static SpectatorCamera instance;
 
         // The spectator camera while it renders, else null.
         public static Camera Active => instance != null && instance.cam != null && instance.cam.enabled ? instance.cam : null;
+        public Camera MapCamera => mode == CameraMode.Map ? cam : null;
 
         // Camera that is really on screen: spectator if active, else the current game view.
         public static Camera Resolve(GameSession game)
@@ -41,10 +44,22 @@ namespace TacticalGame
             return spectator;
         }
 
-        public void SetMode(CameraMode newMode, Transform target)
+        public void SetMode(CameraMode newMode, Transform target, Transform player)
         {
             mode = newMode; follow = target;
+            mapFocus = player;
             cam.enabled = mode != CameraMode.Intruder; // intruder mode lets the player's own camera render
+            if (cam.enabled)
+            {
+                velocity = Vector3.zero;
+                Snap();
+            }
+        }
+
+        public void ZoomMap(float amount)
+        {
+            if (mode == CameraMode.Map)
+                mapZoom = Mathf.Clamp(mapZoom * Mathf.Pow(.87f, amount), .32f, 1.2f);
         }
 
         void Snap() { var pose = Wanted(out var rot); transform.SetPositionAndRotation(pose, rot); }
@@ -64,8 +79,14 @@ namespace TacticalGame
             var grid = pf != null ? pf.grid : null;
             Vector3 centre = grid != null ? grid.transform.position : Vector3.zero;
             float size = grid != null ? Mathf.Max(grid.gridWorldSize.x, grid.gridWorldSize.y) : 40f;
+            if (mapFocus != null)
+            {
+                Vector3 focus = mapFocus.position;
+                focus.y = centre.y;
+                centre = Vector3.Lerp(centre, focus, Mathf.InverseLerp(1f, .45f, mapZoom));
+            }
             rotation = Quaternion.Euler(MapPitch, 0f, 0f);
-            float distance = size * .62f / Mathf.Tan(Fov * .5f * Mathf.Deg2Rad);
+            float distance = size * .62f * mapZoom / Mathf.Tan(Fov * .5f * Mathf.Deg2Rad);
             return centre - rotation * Vector3.forward * distance;
         }
 

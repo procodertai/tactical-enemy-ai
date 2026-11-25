@@ -87,7 +87,7 @@ If a compatibility executable exists at `Builds/Compatibility2021/LastLight.exe`
 | Medical kit cannot be collected | Health is already full. The kit stays available for later. |
 | Next map cannot load | Both scenes must be in Build Profiles / scene list; the supplied build tool sets them. |
 | Build target not supported | Add Windows Build Support to the same editor installation in Unity Hub. |
-| Guards wait in place | In Squad mode, guards pause to scan between patrol legs. Chase Only guards wait for a local observation. Press F3 to inspect live squad state. |
+| Guards wait in place | In Squad mode, guards pause to scan between patrol legs. Chase Only guards wait for a local observation. Press C to inspect live squad state. |
 | Guards are too difficult | Increase Warning Seconds or Shot Interval on their Basic Guard components; see `BASIC_GUARDS.md`. |
 | Red Console error | Read the first red error in the Console. Check Unity Hub for missing modules if the error names an editor tool. |
 

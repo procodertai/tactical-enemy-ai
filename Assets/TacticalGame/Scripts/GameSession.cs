@@ -41,6 +41,7 @@ namespace TacticalGame
         public Camera GodViewCamera { get; private set; }
         public Camera ActiveCamera => Overview ? overviewCamera : GodView ? GodViewCamera : player.viewCamera;
         public bool CanControl => State == RoundState.Playing;
+        internal bool DemoOwnsOverview { get; set; }
         public string Outcome { get; private set; }
         public string Message { get; private set; }
         public float MessageUntil { get; private set; }
@@ -106,8 +107,9 @@ namespace TacticalGame
                 else if (State == RoundState.Paused) Resume();
             }
             if (State != RoundState.Playing) return;
-            if (Input.GetKeyDown(KeyCode.Tab)) ToggleOverview();
-            else if (Input.GetKeyDown(KeyCode.V)) ToggleGodView();
+            // The squad demo drives its own cameras with Tab and V.
+            if (!DemoOwnsOverview && Input.GetKeyDown(KeyCode.Tab)) ToggleOverview();
+            else if (!DemoOwnsOverview && Input.GetKeyDown(KeyCode.V)) ToggleGodView();
             Remaining = Mathf.Max(0f, Remaining - Time.deltaTime);
             if (Remaining <= 0f) Finish(false, "Time ran out. Restore both terminals, then reach the exit.");
         }
@@ -271,7 +273,20 @@ namespace TacticalGame
             if (hit) { ShotsHit++; HitUntil = Time.unscaledTime + .13f; }
         }
 
-        public void Restart() => LoadMission(SceneManager.GetActiveScene().name);
+        public void Restart()
+        {
+            var scene = SceneManager.GetActiveScene();
+#if UNITY_EDITOR
+            if (!string.IsNullOrEmpty(scene.path) && SceneUtility.GetBuildIndexByScenePath(scene.path) < 0)
+            {
+                Time.timeScale = 1f;
+                SetPointer(false);
+                UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(scene.path, new LoadSceneParameters(LoadSceneMode.Single));
+                return;
+            }
+#endif
+            LoadMission(scene.name);
+        }
 
         public void LoadMission(string sceneName)
         {

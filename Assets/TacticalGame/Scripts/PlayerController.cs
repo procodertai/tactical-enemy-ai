@@ -22,6 +22,7 @@ namespace TacticalGame
         public bool IsMoving { get; private set; }
         public Vector3 AimDirection => GameSession.Instance != null && !GameSession.Instance.FirstPerson
             ? externalAimDirection : viewCamera.transform.forward;
+        internal Camera DemoMapCamera { get; set; }
 
         const int WorldRaycastMask = ~(1 << 2);
         CharacterController controller;
@@ -66,7 +67,9 @@ namespace TacticalGame
             if (game.allowDemoInvulnerability && Input.GetKeyDown(KeyCode.G))
                 health.invulnerable = !health.invulnerable;
 
-            if (game.FirstPerson)
+            if (DemoMapCamera != null)
+                AimFromMap(Input.mousePosition);
+            else if (game.FirstPerson)
             {
                 float mouseX = Input.GetAxisRaw("Mouse X") * sensitivity;
                 float mouseY = Input.GetAxisRaw("Mouse Y") * sensitivity;
@@ -97,7 +100,8 @@ namespace TacticalGame
             var axes = game.FirstPerson ? transform : game.ActiveCamera.transform;
             Vector3 forward = game.FirstPerson ? axes.forward : Vector3.ProjectOnPlane(axes.up, Vector3.up).normalized;
             Vector3 right = game.FirstPerson ? axes.right : Vector3.ProjectOnPlane(axes.right, Vector3.up).normalized;
-            var movement = Vector3.ClampMagnitude(right * move.x + forward * move.y, 1f);
+            var movement = DemoMapCamera != null ? MovementDirection(move.x, move.y)
+                : Vector3.ClampMagnitude(right * move.x + forward * move.y, 1f);
             bool precisionAim = rifle.IsAiming && game.FirstPerson;
             sprint &= !precisionAim;
             float speed = sprint ? sprintSpeed : walkSpeed;
@@ -174,6 +178,28 @@ namespace TacticalGame
             return Physics.Raycast(viewCamera.transform.position, direction.normalized, out var hit,
                 interactionDistance, WorldRaycastMask, QueryTriggerInteraction.Ignore)
                 ? hit.collider.GetComponentInParent<WorldInteractable>() : null;
+        }
+
+        internal Vector3 MovementDirection(float right, float forward)
+        {
+            var basis = DemoMapCamera != null ? DemoMapCamera.transform : transform;
+            var along = Vector3.ProjectOnPlane(basis.forward, Vector3.up).normalized;
+            var across = Vector3.Cross(Vector3.up, along);
+            return Vector3.ClampMagnitude(across * right + along * forward, 1f);
+        }
+
+        internal void AimFromMap(Vector3 screenPoint)
+        {
+            var ray = DemoMapCamera.ScreenPointToRay(screenPoint);
+            var ground = new Plane(Vector3.up, transform.position);
+            if (ground.Raycast(ray, out float distance))
+            {
+                Vector3 towardCursor = ray.GetPoint(distance) - transform.position;
+                towardCursor.y = 0f;
+                if (towardCursor.sqrMagnitude > .04f)
+                    transform.rotation = Quaternion.LookRotation(towardCursor);
+            }
+            viewCamera.transform.localRotation = Quaternion.identity;
         }
 
         public void SetSensitivity(float value)

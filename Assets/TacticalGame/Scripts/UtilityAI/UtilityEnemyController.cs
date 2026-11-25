@@ -5,7 +5,7 @@ using UnityEngine;
 namespace TacticalGame
 {
     [RequireComponent(typeof(EnemyWeapon), typeof(TargetDummy))]
-    public sealed class UtilityEnemyController : MonoBehaviour
+    public sealed partial class UtilityEnemyController : MonoBehaviour
     {
         public EnemyObservationProvider observations;
         PathMover tacticalNavigation;
@@ -46,6 +46,7 @@ namespace TacticalGame
 
         void Update()
         {
+            if (demoNavigation != null) { UpdateDemo(); return; }
             var game = GameSession.Instance;
             if (Input.GetKeyDown(KeyCode.F2) && (tacticalNavigation == null || target.EnemyId == "01"))
             {
@@ -133,11 +134,13 @@ namespace TacticalGame
         {
             SharedSightingSource = null;
             movement?.Stop();
+            demoNavigation?.Stop();
             if (weapon != null) { weapon.StopAiming(); weapon.HideEffects(); }
         }
 
         void OnGUI()
         {
+            if (demoNavigation != null) return;
             var game = GameSession.Instance;
             if (weapon == null || !(game != null && game.GodView ? showGodViewScores : showOverlay)) return;
             GUILayout.BeginArea(new Rect(Screen.width - 470, 130, 450, 330), GUI.skin.box); // right side: HUD and squad panel use the left
@@ -150,7 +153,7 @@ namespace TacticalGame
             GUILayout.Label(inputs.Role + " / " + CurrentAction + (weapon.IsReloading ? " (finishing reload)" : ""));
             if (!weapon.Active) GUILayout.Label("Combat suspended or enemy defeated");
             if (Scores != null) foreach (var score in Scores)
-                GUILayout.Label($"{score.Action}: {(score.Available ? score.Score.ToString("F2") : "unavailable")} — {score.Reason}");
+                GUILayout.Label($"{score.Action}: {(score.Available ? score.Score?.ToString("F2") ?? score.Priority.ToString() : "unavailable")} — {score.Reason}");
             GUILayout.Label("Last change: " + LastSwitch);
             GUILayout.EndArea();
         }

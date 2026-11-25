@@ -64,6 +64,7 @@ namespace TacticalGame
         public Vector3 LastKnownPosition { get; private set; }
         public float TimeSinceLastSeen => Time.time - lastSeenAt;
         public float LastStimulusAt => lastStimulusAt;
+        public bool LastContactWasNoise { get; private set; }
         public event Action<AwarenessState, AwarenessState> StateChanged;
 
         static readonly List<GuardPerception> All = new List<GuardPerception>();
@@ -168,6 +169,7 @@ namespace TacticalGame
             LastKnownPosition = player.transform.position;
             HasLastKnown = true;
             lastSeenAt = lastStimulusAt = Time.time;
+            LastContactWasNoise = false;
         }
 
 
@@ -245,6 +247,7 @@ namespace TacticalGame
             {
                 LastKnownPosition = EstimateSoundSource(position, distance, walls);
                 HasLastKnown = true;
+                LastContactWasNoise = true;
             }
             lastStimulusAt = Time.time;
             Awareness = Mathf.Clamp01(Awareness + (boost >= 0f ? boost : noiseAwarenessBoost));

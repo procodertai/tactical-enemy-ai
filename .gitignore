@@ -22,10 +22,20 @@
 sysinfo.txt
 crash.dmp
 CLAUDE.md
+AGENTS.md
+
+# Local coursework and planning notes
+/TEAM_SYSTEM_MAP.md
+/project-3-2d-plan.md
+/project-3-3d-plan.md
+/projectDescription.doc
 
 # Generated demo scenes and local editor settings
 /Assets/TacticalGame/Scenes/UtilityAiDemo.unity
 /Assets/TacticalGame/Scenes/UtilityAiDemo.unity.meta
 /Assets/TacticalGame/Scenes/SquadTacticsDemo.unity
 /Assets/TacticalGame/Scenes/SquadTacticsDemo.unity.meta
+
+# Unity editor settings generated locally
+/ProjectSettings/PackageManagerSettings.asset
 /ProjectSettings/SceneTemplateSettings.json
